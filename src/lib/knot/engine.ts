@@ -12,6 +12,7 @@ import { verifyDelivery } from "./verification";
 
 export const defaultObligation: Obligation = {
   task: "Fetch a current, signed wallet risk assessment and return a confidence score.",
+  subject: "0x0000000000000000000000000000000000000001",
   maxPriceUsdc: 0.03,
   maxLatencyMs: 1_400,
   maxAgeSeconds: 90,
@@ -35,13 +36,28 @@ export async function executeJob(
   const obligation: Obligation = {
     ...defaultObligation,
     ...(input.task ? { task: input.task } : {}),
+    ...(input.subject ? { subject: input.subject } : {}),
     ...(input.maxPriceUsdc ? { maxPriceUsdc: input.maxPriceUsdc } : {}),
     ...(input.maxLatencyMs ? { maxLatencyMs: input.maxLatencyMs } : {}),
     ...(input.maxAgeSeconds ? { maxAgeSeconds: input.maxAgeSeconds } : {}),
     ...(input.requiredFields ? { requiredFields: input.requiredFields } : {}),
     ...(input.requireSignature !== undefined ? { requireSignature: input.requireSignature } : {}),
   };
-  const eligible = providers
+  const activeProviders = options.origin && providers === localProviders
+    ? [
+        localProviders[0],
+        {
+          id: "arc-sentinel",
+          name: "Arc Sentinel",
+          priceUsdc: 0.024,
+          reputation: 96,
+          proofSupport: true,
+          endpoint: "/api/providers/arc-sentinel/report",
+          request: async () => (await import("./arc-risk")).createArcRiskDelivery(obligation.subject),
+        },
+      ] satisfies ServiceProvider[]
+    : providers;
+  const eligible = activeProviders
     .filter((provider) => provider.priceUsdc <= obligation.maxPriceUsdc)
     .sort((a, b) => a.priceUsdc - b.priceUsdc);
 
@@ -122,7 +138,7 @@ export async function executeJob(
       }),
     );
 
-    const canSettleLive = provider.id === "northstar-data"
+    const canSettleLive = provider.id === "arc-sentinel"
       && Boolean(options.origin)
       && Boolean(process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x"))
       && Boolean(process.env.X402_SELLER_ADDRESS);
@@ -134,9 +150,10 @@ export async function executeJob(
           provider: string;
           executionId: string;
           evidenceHash: string;
-        }>(`${options.origin}/api/providers/northstar-data/settle`, {
+        }>(`${options.origin}/api/providers/arc-sentinel/settle`, {
           executionId,
           evidenceHash: delivery.evidenceHash,
+          subject: obligation.subject,
         });
 
         events.push(event(events.length, {

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const obligationSchema = z.object({
   task: z.string().trim().min(12).max(280),
+  subject: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   maxPriceUsdc: z.number().positive().max(1),
   maxLatencyMs: z.number().int().positive().max(30_000),
   maxAgeSeconds: z.number().int().positive().max(86_400),
@@ -81,6 +82,7 @@ export const executionSchema = z.object({
 
 export const createExecutionSchema = z.object({
   task: z.string().trim().min(12).max(280).optional(),
+  subject: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
   maxPriceUsdc: z.number().positive().max(1).optional(),
   maxLatencyMs: z.number().int().positive().max(30_000).optional(),
   maxAgeSeconds: z.number().int().positive().max(86_400).optional(),

@@ -31,11 +31,10 @@ type AgentWalletState = {
   funding: boolean;
   error: string | null;
   fundHash: string | null;
-  activate: () => Promise<boolean>;
+  activate: () => Promise<AgentWallet | null>;
   fund: () => Promise<void>;
 };
 
-const defaultTask = "Fetch a current, signed wallet risk assessment and return a confidence score.";
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
 const policyPresets = {
   economy: { maxPrice: "0.025", maxAge: 300, maxLatency: 3_000, requireSignature: false },
@@ -136,17 +135,19 @@ function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
 function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: number }) {
   const accepted = attempt?.outcome === "accepted";
   const rejected = attempt?.outcome === "rejected";
+  const liveProvider = index === 1;
+  const failedChecks = attempt?.verification.checks.filter((check) => !check.passed).map((check) => check.label.toLowerCase()).join(", ");
   return (
     <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
-      <div className="provider-topline"><span>DEMO PROVIDER / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "VERIFIED & SELECTED" : rejected ? "EVIDENCE FAILED" : "STANDBY"}</span></div>
-      <h3>{attempt?.provider ?? (index === 0 ? "Signal Forge" : "Northstar Data")}</h3>
+      <div className="provider-topline"><span>{liveProvider ? "LIVE ARC PROVIDER" : "FALLBACK TEST PROVIDER"} / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "VERIFIED & SELECTED" : rejected ? "EVIDENCE FAILED" : "STANDBY"}</span></div>
+      <h3>{attempt?.provider ?? (index === 0 ? "Signal Forge" : "Arc Sentinel")}</h3>
       <div className="provider-stats">
         <div><span>Quote</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
-        <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 71 : 94)} / 100</b></div>
+        <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 71 : 96)} / 100</b></div>
         <div><span>Proof</span><b>{attempt?.proofSupport ?? true ? "Supported" : "Missing"}</b></div>
       </div>
-      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "Rejected evidence: stale data and a schema mismatch. No payment was released, so KNOT automatically routed the job to the next eligible provider." : index === 0 ? "A local demo fixture: the cheaper response intentionally fails freshness so KNOT can demonstrate autonomous fallback." : "A local demo fixture: the higher-trust provider returns current, complete evidence inside the job ceiling."}</p>
-      <p className="provider-fixture">Demo reputation scores are fixed in local mode. Live providers will supply verifiable reputation signals.</p>
+      <p className="provider-note">{accepted ? "Live Arc evidence met every obligation. Settlement authorization was bound to this report hash." : rejected ? `Evidence rejected on ${failedChecks || "policy validation"}. No payment was released.` : index === 0 ? "A controlled low-cost offer demonstrates that KNOT will reject stale or incomplete evidence." : "Queries Arc RPC at execution time, scores the requested address, and signs the resulting evidence envelope."}</p>
+      <p className="provider-fixture">{liveProvider ? "Source: Arc Testnet RPC · cryptographically signed report" : "Controlled fixture · used only to demonstrate autonomous fallback"}</p>
     </article>
   );
 }
@@ -158,6 +159,25 @@ function ProofRow({ check, label }: { check?: VerificationCheck; label: string }
       <strong>{check?.label ?? label}</strong><span>{check?.detail ?? "Waiting for an evidence envelope"}</span>
     </div>
   );
+}
+
+function RiskReport({ attempt }: { attempt?: ProviderAttempt }) {
+  if (!attempt || attempt.providerId !== "arc-sentinel") return null;
+  const payload = attempt.delivery.payload;
+  const subject = typeof payload.subject === "string" ? payload.subject : "";
+  const risk = typeof payload.risk === "string" ? payload.risk : "unknown";
+  const score = typeof payload.riskScore === "number" ? payload.riskScore : 0;
+  const balance = typeof payload.balanceUsdc === "number" ? payload.balanceUsdc : 0;
+  const transactions = typeof payload.transactionCount === "number" ? payload.transactionCount : 0;
+  const accountType = typeof payload.accountType === "string" ? payload.accountType : "unknown";
+  const latestBlock = typeof payload.latestBlock === "number" ? payload.latestBlock : 0;
+  const signals = Array.isArray(payload.signals) ? payload.signals.filter((item): item is string => typeof item === "string") : [];
+
+  return <section className="risk-report page-shell" aria-label="Live Arc wallet risk report">
+    <div className="risk-score"><span>LIVE RISK SCORE</span><strong>{score}</strong><small>/ 100 · {risk.toUpperCase()}</small><i style={{ "--score": `${score}%` } as React.CSSProperties} /></div>
+    <div className="risk-report-main"><div className="risk-report-heading"><div><span>ARC SENTINEL REPORT</span><h2>Onchain evidence, not a generated answer.</h2></div><a href={`${ARC_TESTNET.explorerUrl}/address/${subject}`} target="_blank" rel="noreferrer">Inspect wallet <ExternalIcon /></a></div><code>{subject}</code><div className="risk-metrics"><div><span>Balance</span><strong>{balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDC</strong></div><div><span>Transactions</span><strong>{transactions}</strong></div><div><span>Account</span><strong>{accountType}</strong></div><div><span>Latest block</span><strong>{latestBlock.toLocaleString()}</strong></div></div></div>
+    <div className="risk-signals"><span>DECISION SIGNALS</span>{signals.map((signal) => <p key={signal}><i />{signal}</p>)}<small>Heuristic evidence for agent policy decisions, not financial advice.</small></div>
+  </section>;
 }
 
 function useArcWallet() {
@@ -308,19 +328,21 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? "Agent wallet could not be prepared.");
-    setAgentWallet(data.wallet as AgentWallet);
+    const prepared = data.wallet as AgentWallet;
+    setAgentWallet(prepared);
+    return prepared;
   }, []);
 
   const activate = useCallback(async () => {
     setError(null);
     let owner = wallet.account;
     if (!owner) owner = await wallet.connect();
-    if (!owner) return false;
+    if (!owner) return null;
 
     const provider = getInjectedProvider();
     if (!provider) {
       setError("No injected wallet was detected.");
-      return false;
+      return null;
     }
     setBusy(true);
     try {
@@ -331,11 +353,10 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
 
       const auth = { owner, issuedAt, signature };
       authorization.current = auth;
-      await requestAgentWallet(auth);
-      return true;
+      return await requestAgentWallet(auth);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Agent wallet activation failed.");
-      return false;
+      return null;
     } finally {
       setBusy(false);
     }
@@ -444,7 +465,7 @@ function AgentControlStrip({ agent, maxPrice }: { agent: AgentWalletState; maxPr
 }
 
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
-  const [task, setTask] = useState(defaultTask);
+  const [subject, setSubject] = useState("");
   const [maxPrice, setMaxPrice] = useState("0.030");
   const [maxAge, setMaxAge] = useState(90);
   const [maxLatency, setMaxLatency] = useState(1_400);
@@ -455,6 +476,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const traceListRef = useRef<HTMLOListElement>(null);
+  const subjectAddress = subject || wallet.account || "";
 
   useEffect(() => {
     if (!execution || visibleEvents >= execution.events.length) return;
@@ -487,18 +509,22 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
   async function runAgent() {
     setError(null);
-    if (!agent.wallet && !(await agent.activate())) return;
+    const activatedAgent = agent.wallet ?? await agent.activate();
+    if (!activatedAgent) return;
+    const target = subjectAddress || activatedAgent.owner;
+    if (!isAddress(target)) return setError("Enter a valid Arc wallet address to assess.");
     setExecution(null); setVisibleEvents(0); setRunning(true);
     try {
       const response = await fetch("/api/executions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          task,
+          task: `Assess Arc wallet ${target} using current onchain evidence and return a signed risk report.`,
+          subject: target,
           maxPriceUsdc: Number(maxPrice),
           maxAgeSeconds: maxAge,
           maxLatencyMs: maxLatency,
-          requiredFields: ["risk", "confidence", "observedAt"],
+          requiredFields: ["risk", "confidence", "observedAt", "balanceUsdc", "transactionCount"],
           requireSignature,
         }),
       });
@@ -534,8 +560,9 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         <article className="mission-panel panel-light">
           <div className="section-heading"><div><span>Obligation builder</span><h2>Compose a payable outcome.</h2></div><span className="job-chip">JOB / 001</span></div>
           <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><span>SERVICE MARKET</span><strong>Wallet risk intelligence</strong><p>Signed assessment · machine-verifiable delivery</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
-          <label className="field-label" htmlFor="task">Outcome request</label>
-          <textarea id="task" value={task} onChange={(event) => setTask(event.target.value)} maxLength={280} rows={4} />
+          <div className="subject-heading"><div><span>Wallet to assess</span><p>Arc Sentinel reads the latest state directly from Arc Testnet.</p></div>{wallet.account && <button type="button" onClick={() => setSubject(wallet.account ?? "")}>Use connected wallet</button>}</div>
+          <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subjectAddress} onChange={(event) => setSubject(event.target.value.trim())} placeholder="0x..." spellCheck={false} /><span>{isAddress(subjectAddress) ? "VALID ARC ADDRESS" : "ADDRESS REQUIRED"}</span></div>
+          <div className="live-source"><span><i />LIVE ONCHAIN INPUT</span><p>Balance · transaction count · account bytecode · latest block timestamp</p></div>
           <div className="policy-heading"><div><span>Execution policy</span><p>Choose a policy or tune every condition yourself.</p></div><strong>{policyPreset.toUpperCase()}</strong></div>
           <div className="policy-presets" role="group" aria-label="Execution policy preset">
             {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
@@ -546,9 +573,9 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             <label><span>Response latency</span><select value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }}><option value="800">≤ 800 ms</option><option value="1400">≤ 1,400 ms</option><option value="3000">≤ 3,000 ms</option></select></label>
             <button className={`signature-policy ${requireSignature ? "is-required" : ""}`} type="button" aria-pressed={requireSignature} onClick={() => { setRequireSignature((required) => !required); setPolicyPreset("custom"); }}><span>Provider signature</span><strong>{requireSignature ? "Required" : "Optional"}</strong><i /></button>
           </div>
-          <div className="required-output"><span>Required output</span><div><b>risk</b><b>confidence</b><b>observedAt</b></div><small>All fields must exist before settlement.</small></div>
+          <div className="required-output"><span>Required output</span><div><b>risk</b><b>confidence</b><b>observedAt</b><b>balanceUsdc</b><b>transactionCount</b></div><small>Core evidence fields must exist and the provider signature must verify before settlement.</small></div>
           <div className="execution-source"><span><i />PROTOCOL-FUNDED TEST RAIL</span><strong>{agent.wallet ? "Agent authorized. No transaction approval is required." : "First run requests a wallet signature."}</strong><p>{agent.wallet ? "This public demo remains protocol-funded, so your connected wallet's USDC is not spent." : "The signature creates your personal Circle MPC agent identity. It does not approve or spend USDC; the demo payment remains protocol-funded."}</p></div>
-          <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying delivery" : agent.wallet ? "Run x402 verification demo" : "Authorize agent & run x402 demo"}</span><ArrowIcon /></button>
+          <button className="run-button" type="button" onClick={runAgent} disabled={busy || !isAddress(subjectAddress)}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : agent.wallet ? "Assess wallet & settle over x402" : "Authorize agent & assess wallet"}</span><ArrowIcon /></button>
           <div className="policy-summary"><span><i />{maxPrice} USDC max</span><span><i />{maxAge}s fresh</span><span><i />{maxLatency.toLocaleString()}ms latency</span><span><i />{requireSignature ? "signed" : "signature optional"}</span></div>
           {error && <p className="error-message" role="alert">{error}</p>}
         </article>
@@ -559,6 +586,8 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
         </article>
       </section>
+
+      {completed && <RiskReport attempt={acceptedAttempt} />}
 
       {completed && execution && <section className={`execution-receipt page-shell ${execution.status === "verified" ? "is-verified" : "is-blocked"}`} aria-label="Execution receipt">
         <div className="receipt-mark"><SignalIcon kind={execution.status === "verified" ? "verify" : "intent"} /></div>
