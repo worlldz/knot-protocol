@@ -19,6 +19,11 @@ x402 makes machine payments easy, but payment success does not prove service qua
 ## What works now
 
 - Professional responsive product console
+- Persistent dark/light product themes and deep-linked app views
+- Injected wallet connection with live Arc Testnet network and native USDC balance state
+- One-click Arc Testnet add/switch flow using the official network configuration
+- Direct native USDC payment surface with Arcscan transaction links
+- Curated Arc and Circle resource guide using the official Arc brand mark
 - Server-side execution engine and execution records
 - Deterministic price, latency, freshness, schema, and signature checks
 - Autonomous provider fallback within a fixed USDC budget
@@ -43,7 +48,11 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` and run the active obligation.
+Open `http://localhost:3000`. Product views can also be opened directly:
+
+- `http://localhost:3000/#console`
+- `http://localhost:3000/#payment`
+- `http://localhost:3000/#explore`
 
 ## Quality commands
 
@@ -100,6 +109,9 @@ See [architecture](docs/architecture.md), [security model](docs/security.md), an
 - Provider responses are deterministic local adapters until live paid providers are connected.
 - The UI does not claim an onchain transaction unless a transaction hash exists.
 - The hook is compiled and tested but not yet deployed from this repository.
+- A browser wallet is required to exercise the network-add and direct USDC payment surfaces.
+
+The Arc wordmark used by the interface is sourced from the official [Arc Brand Guidelines and Partner Toolkit](https://www.arc.io/brand-guidelines-and-partner-toolkit).
 
 ## License
 
