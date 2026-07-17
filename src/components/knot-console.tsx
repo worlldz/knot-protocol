@@ -509,10 +509,10 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
   async function runAgent() {
     setError(null);
+    if (!isAddress(subjectAddress)) return setError("Enter a valid Arc wallet address to assess.");
     const activatedAgent = agent.wallet ?? await agent.activate();
     if (!activatedAgent) return;
     const target = subjectAddress || activatedAgent.owner;
-    if (!isAddress(target)) return setError("Enter a valid Arc wallet address to assess.");
     setExecution(null); setVisibleEvents(0); setRunning(true);
     try {
       const response = await fetch("/api/executions", {
@@ -558,28 +558,15 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
-          <div className="section-heading"><div><span>Obligation builder</span><h2>Compose a payable outcome.</h2></div><span className="job-chip">JOB / 001</span></div>
-          <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><span>SERVICE MARKET</span><strong>Wallet risk intelligence</strong><p>Signed assessment · machine-verifiable delivery</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
-          <div className="subject-heading"><div><span>Wallet to assess</span><p>Arc Sentinel reads the latest state directly from Arc Testnet.</p></div>{wallet.account && <button type="button" onClick={() => setSubject(wallet.account ?? "")}>Use connected wallet</button>}</div>
-          <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subjectAddress} onChange={(event) => setSubject(event.target.value.trim())} placeholder="0x..." spellCheck={false} /><span>{isAddress(subjectAddress) ? "VALID ARC ADDRESS" : "ADDRESS REQUIRED"}</span></div>
-          <div className="live-source"><span><i />LIVE ONCHAIN INPUT</span><p>Balance · transaction count · account bytecode · latest block timestamp</p></div>
-          <div className="policy-heading"><div><span>Choose protection level</span><p>KNOT applies these limits before any payment can settle.</p></div><strong>{policyPreset.toUpperCase()}</strong></div>
+          <div className="section-heading"><div><span>Obligation builder</span><h2>Assess an Arc wallet.</h2></div></div>
+          <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><strong>Wallet risk intelligence</strong><p>Live Arc evidence with x402 settlement</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
+          <div className="subject-heading"><span>Wallet address</span></div>
+          <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subjectAddress} onChange={(event) => setSubject(event.target.value.trim())} placeholder="0x..." spellCheck={false} /></div>
+          <div className="policy-heading"><span>Protection level</span></div>
           <div className="policy-presets" role="group" aria-label="Execution policy preset">
             {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
           </div>
-          <div className="policy-summary"><span><i />{maxPrice} USDC max</span><span><i />{maxAge}s fresh</span><span><i />{maxLatency.toLocaleString()}ms latency</span><span><i />{requireSignature ? "signed" : "signature optional"}</span></div>
-          <details className="policy-details">
-            <summary><span><strong>Advanced policy</strong><small>Fine-tune evidence requirements</small></span><b>EDIT</b></summary>
-            <div className="constraint-grid policy-grid">
-              <label><span>Spend ceiling</span><select value={maxPrice} onChange={(event) => { setMaxPrice(event.target.value); setPolicyPreset("custom"); }}><option value="0.025">0.025 USDC</option><option value="0.030">0.030 USDC</option><option value="0.050">0.050 USDC</option></select></label>
-              <label><span>Data freshness</span><select value={maxAge} onChange={(event) => { setMaxAge(Number(event.target.value)); setPolicyPreset("custom"); }}><option value="30">Up to 30 sec</option><option value="90">Up to 90 sec</option><option value="300">Up to 5 min</option></select></label>
-              <label><span>Response latency</span><select value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }}><option value="800">Up to 800 ms</option><option value="1400">Up to 1,400 ms</option><option value="3000">Up to 3,000 ms</option></select></label>
-              <button className={`signature-policy ${requireSignature ? "is-required" : ""}`} type="button" aria-pressed={requireSignature} onClick={() => { setRequireSignature((required) => !required); setPolicyPreset("custom"); }}><span>Provider signature</span><strong>{requireSignature ? "Required" : "Optional"}</strong><i /></button>
-            </div>
-            <div className="required-output"><span>Required output</span><div><b>risk</b><b>confidence</b><b>observedAt</b><b>balanceUsdc</b><b>transactionCount</b></div><small>Every field and provider signature must verify before settlement.</small></div>
-          </details>
-          <button className="run-button" type="button" onClick={runAgent} disabled={busy || !isAddress(subjectAddress)}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : agent.wallet ? "Assess wallet & settle over x402" : "Authorize agent & assess wallet"}</span><ArrowIcon /></button>
-          <div className="execution-source"><span><i />{agent.wallet ? "AGENT AUTHORIZED" : "FIRST RUN REQUIRES SIGNATURE"}</span><p>{agent.wallet ? "Protocol-funded test rail. Your wallet USDC is not spent." : "The signature creates your agent identity; it cannot spend USDC."}</p></div>
+          <button className="run-button" type="button" onClick={runAgent} disabled={busy}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : "Assess wallet"}</span><ArrowIcon /></button>
           {error && <p className="error-message" role="alert">{error}</p>}
         </article>
 
