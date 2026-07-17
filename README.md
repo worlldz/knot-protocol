@@ -1,8 +1,40 @@
 # KNOT
 
-KNOT binds agent intent, service evidence, and USDC settlement on Arc.
+**Pay for verified outcomes, not unproven responses.**
 
-The first prototype demonstrates the core clearing loop: an autonomous buyer evaluates a paid service delivery against deterministic conditions, rejects stale or malformed evidence, reroutes to a fallback provider, and authorizes settlement only after every check passes.
+KNOT is a verification-native settlement layer for autonomous commerce on Arc. A buyer agent describes measurable delivery conditions, evaluates paid service responses, rejects invalid evidence, and authorizes USDC settlement only after every condition passes.
+
+The current demo runs the complete decision loop through a server-side execution API. It intentionally keeps the value rail in `simulated` mode until the Circle buyer wallet is funded and the verification hook is deployed on Arc Testnet.
+
+## Why KNOT
+
+x402 makes machine payments easy, but payment success does not prove service quality. An agent can pay for stale data, a malformed payload, a late response, or an unsigned result. KNOT adds the missing boundary between delivery and settlement:
+
+1. Express the job as an obligation.
+2. Discover eligible paid providers.
+3. Inspect a deterministic evidence envelope.
+4. Reject and reroute without human intervention.
+5. Bind accepted evidence to settlement authorization.
+
+## What works now
+
+- Professional responsive product console
+- Server-side execution engine and execution records
+- Deterministic price, latency, freshness, schema, and signature checks
+- Autonomous provider fallback within a fixed USDC budget
+- Circle Gateway x402 verifier route with safe local-mode fallback
+- ERC-8183-compatible `KnotVerificationHook`
+- Replay protection, verifier roles, validity windows, and evidence-hash binding
+- Unit, contract, API, mobile, lint, and production-build verification
+
+## Stack
+
+- Next.js 16, React 19, TypeScript, Zod
+- Arc Testnet, chain ID `5042002`
+- USDC and Circle Gateway x402 Nanopayments
+- ERC-8183 Agentic Commerce hooks
+- ERC-8004-compatible identity and reputation surface (planned milestone)
+- Solidity 0.8.28, Hardhat 3, viem
 
 ## Run locally
 
@@ -11,22 +43,64 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` and run the active obligation.
 
-## Current milestone
+## Quality commands
 
-- Product console
-- Deterministic delivery verifier
-- Autonomous fallback simulation
-- Settlement authorization state
-- Checkpoint 1 project description
+```bash
+npm run lint
+npm run test:unit
+npm run test:contracts
+npm run build
+```
 
-## Next milestone
+## API
 
-- Circle Agent Wallet on Arc Testnet
-- Live x402 buyer and seller endpoints
-- ERC-8004 agent identity
-- ERC-8183 job settlement
-- KNOT verification hook
+| Route | Purpose |
+| --- | --- |
+| `POST /api/executions` | Run an obligation through discovery, verification, fallback, and authorization |
+| `GET /api/executions/:id` | Read a stored execution trace |
+| `GET /api/system/status` | Report integration readiness without exposing secrets |
+| `POST /api/x402/verify` | Verify an evidence envelope; protected by Circle Gateway when seller mode is configured |
 
-See [Checkpoint 1](docs/checkpoint-1.md) for the hackathon submission draft.
+Example:
+
+```bash
+curl -X POST http://localhost:3000/api/executions \
+  -H "content-type: application/json" \
+  -d '{"maxPriceUsdc":0.03}'
+```
+
+## Live integration
+
+Copy the variable names from `.env.example` into `.env.local`. Never commit private keys or Circle credentials.
+
+The x402 verifier becomes payment-protected when `X402_SELLER_ADDRESS` is set. A real buyer call additionally requires a funded `X402_BUYER_PRIVATE_KEY`. Contract deployment requires an Arc Testnet deployer and the target ERC-8183 commerce protocol address.
+
+```bash
+npm run deploy:arc
+```
+
+## Contracts
+
+`KnotVerificationHook` implements the ERC-8183 `IACPHook` callbacks. Before `complete(...)`, it requires:
+
+- an attestation from a `VERIFIER_ROLE` account;
+- an accepted result that has not expired;
+- an evidence hash equal to the ERC-8183 completion reason;
+- an attestation that has not already been consumed.
+
+`afterAction(...)` consumes the attestation atomically, preventing replay.
+
+See [architecture](docs/architecture.md), [security model](docs/security.md), and the [Checkpoint 1 draft](docs/checkpoint-1.md).
+
+## Honest limitations
+
+- Execution records use in-memory demo storage and should move to a durable database before production.
+- Provider responses are deterministic local adapters until live paid providers are connected.
+- The UI does not claim an onchain transaction unless a transaction hash exists.
+- The hook is compiled and tested but not yet deployed from this repository.
+
+## License
+
+MIT

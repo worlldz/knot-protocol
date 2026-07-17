@@ -1,36 +1,48 @@
-# KNOT — Checkpoint 1
+# KNOT - Checkpoint 1
 
 ## One-line description
 
 KNOT verifies that autonomous agents received what they paid for before USDC settlement is finalized on Arc.
 
-## Track
+## Tracks
 
 - Agentic Economy
-- DeFi (conditional payments and multi-step USDC settlement)
+- DeFi: conditional payments and multi-step USDC settlement
 
 ## Problem
 
-Agent wallets and x402 make autonomous payments possible, but a valid payment does not prove that an offchain service delivered the promised result. Agents can receive stale, malformed, late, or missing responses with no reliable path from evidence to settlement.
+Agent wallets and x402 make autonomous payments possible, but a successful payment does not prove that an offchain service delivered the promised result. Agents can receive stale, malformed, late, unsigned, or missing responses without a reliable bridge from delivery evidence to settlement.
 
 ## Solution
 
-KNOT is a verification-native settlement layer for agent commerce. A buyer agent defines measurable delivery conditions, discovers and pays service providers, verifies the returned evidence, and settles or rejects the job without human intervention. Failed services trigger an autonomous fallback while the user receives a complete evidence and payment trail.
+KNOT is a verification-native settlement layer for agent commerce. A buyer agent defines measurable conditions, ranks eligible paid providers, verifies returned evidence, and authorizes or blocks settlement without human intervention. A failed provider triggers an autonomous fallback while the user receives a complete decision and evidence trail.
 
-## Initial demo
+## Demo scenario
 
-A Circle-powered buyer agent purchases a wallet risk signal from an x402 service. The first provider returns stale and incomplete data, so KNOT rejects it and routes to a second provider. When freshness, schema, latency, and signature checks pass, KNOT authorizes USDC settlement on Arc.
+A buyer agent needs a current, signed wallet risk signal for no more than `0.030 USDC`. The cheapest provider returns stale data with a missing confidence field. KNOT rejects it, keeps settlement blocked, and routes to a second provider. The fallback returns fresh, signed, schema-valid evidence for `0.024 USDC`; KNOT binds its hash to settlement authorization.
 
-## Planned Arc and Circle stack
+## Meaningful Arc and Circle use
 
-- Arc Testnet and USDC
-- Circle Agent Wallets
-- Circle Agent Stack service discovery
-- x402 / Circle Nanopayments
-- ERC-8004 agent identity and reputation
-- ERC-8183 jobs and escrow settlement
-- A custom KNOT verification hook and evidence passport
+- Arc is the settlement network for low-cost, fast, USDC-native agent jobs.
+- USDC is the job budget and settlement asset.
+- Circle Gateway x402 Nanopayments provide the HTTP-native buyer/seller payment rail.
+- ERC-8183 provides the agent job lifecycle and hook boundary.
+- KNOT's custom hook blocks ERC-8183 completion unless accepted evidence is present.
+- ERC-8004 identity and outcome reputation are the next composition milestone.
 
-## Current status
+## Current build
 
-The product interface and deterministic delivery verification engine are running locally. Arc Testnet contracts, Circle Wallet integration, and live x402 buyer/seller endpoints are the next milestones.
+- Working responsive product demo
+- Server-side autonomous execution API
+- Deterministic evidence verification and fallback
+- x402-compatible paid verifier endpoint
+- Compiled ERC-8183 verification hook
+- Automated unit and contract security tests
+
+## Next checkpoint
+
+- Deploy `KnotVerificationHook` on Arc Testnet
+- Fund and connect a Circle Gateway buyer wallet
+- Execute a live paid x402 request
+- Bind the resulting evidence hash to an ERC-8183 testnet job
+- Publish the repository and deployment addresses

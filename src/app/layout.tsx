@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KNOT | Verified settlement for autonomous agents",
-  description:
-    "KNOT binds agent intent, service evidence, and USDC settlement on Arc.",
+  title: "KNOT | Pay for verified outcomes",
+  description: "Verification-native USDC settlement for autonomous agents on Arc.",
 };
 
 export default function RootLayout({

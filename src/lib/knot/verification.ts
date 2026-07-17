@@ -1,28 +1,9 @@
-export type Delivery = {
-  provider: string;
-  priceUsdc: number;
-  latencyMs: number;
-  ageSeconds: number;
-  signatureValid: boolean;
-  payload: Record<string, unknown>;
-};
-
-export type Obligation = {
-  maxPriceUsdc: number;
-  maxLatencyMs: number;
-  maxAgeSeconds: number;
-  requiredFields: string[];
-  requireSignature: boolean;
-};
-
-export type VerificationResult = {
-  accepted: boolean;
-  checks: Array<{
-    label: string;
-    passed: boolean;
-    detail: string;
-  }>;
-};
+import type {
+  Delivery,
+  Obligation,
+  VerificationCheck,
+  VerificationResult,
+} from "./schemas";
 
 export function verifyDelivery(
   obligation: Obligation,
@@ -32,23 +13,27 @@ export function verifyDelivery(
     (field) => !(field in delivery.payload),
   );
 
-  const checks = [
+  const checks: VerificationCheck[] = [
     {
+      key: "price",
       label: "Price ceiling",
       passed: delivery.priceUsdc <= obligation.maxPriceUsdc,
       detail: `${delivery.priceUsdc.toFixed(3)} / ${obligation.maxPriceUsdc.toFixed(3)} USDC`,
     },
     {
+      key: "latency",
       label: "Response latency",
       passed: delivery.latencyMs <= obligation.maxLatencyMs,
-      detail: `${delivery.latencyMs} / ${obligation.maxLatencyMs} ms`,
+      detail: `${delivery.latencyMs.toLocaleString("en-US")} / ${obligation.maxLatencyMs.toLocaleString("en-US")} ms`,
     },
     {
+      key: "freshness",
       label: "Data freshness",
       passed: delivery.ageSeconds <= obligation.maxAgeSeconds,
       detail: `${delivery.ageSeconds}s old / ${obligation.maxAgeSeconds}s max`,
     },
     {
+      key: "schema",
       label: "Required schema",
       passed: missingFields.length === 0,
       detail:
@@ -57,6 +42,7 @@ export function verifyDelivery(
           : `Missing: ${missingFields.join(", ")}`,
     },
     {
+      key: "signature",
       label: "Provider signature",
       passed: !obligation.requireSignature || delivery.signatureValid,
       detail: delivery.signatureValid ? "Signature valid" : "Signature invalid",

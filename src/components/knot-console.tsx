@@ -1,360 +1,176 @@
 "use client";
 
-import { useState } from "react";
-import {
-  verifyDelivery,
-  type Delivery,
-  type Obligation,
-  type VerificationResult,
-} from "@/lib/verification";
+import { useEffect, useMemo, useState } from "react";
+import type { Execution, ExecutionEvent, ProviderAttempt, VerificationCheck } from "@/lib/knot/schemas";
 
-type RunEvent = {
-  eyebrow: string;
-  title: string;
-  detail: string;
-  tone: "neutral" | "good" | "bad";
+type SystemStatus = {
+  mode: "local" | "live";
+  services: { verificationEngine: string; x402Buyer: string; x402Seller: string; settlementHook: string };
 };
 
-const obligation: Obligation = {
-  maxPriceUsdc: 0.03,
-  maxLatencyMs: 1400,
-  maxAgeSeconds: 90,
-  requiredFields: ["risk", "confidence", "observedAt"],
-  requireSignature: true,
-};
+const defaultTask = "Fetch a current, signed wallet risk assessment and return a confidence score.";
+const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
 
-const staleDelivery: Delivery = {
-  provider: "Signal Forge",
-  priceUsdc: 0.018,
-  latencyMs: 482,
-  ageSeconds: 410,
-  signatureValid: true,
-  payload: { risk: "low", observedAt: "stale" },
-};
+function KnotMark() {
+  return <span className="knot-mark" aria-hidden="true"><i /><i /></span>;
+}
 
-const validDelivery: Delivery = {
-  provider: "Northstar Data",
-  priceUsdc: 0.024,
-  latencyMs: 731,
-  ageSeconds: 18,
-  signatureValid: true,
-  payload: { risk: "medium", confidence: 0.94, observedAt: "current" },
-};
+function ArrowIcon() {
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.7" /></svg>;
+}
 
-const wait = (duration: number) =>
-  new Promise((resolve) => window.setTimeout(resolve, duration));
+function ShortHash({ value }: { value: string | null }) {
+  return value ? <span title={value}>{`${value.slice(0, 10)}...${value.slice(-8)}`}</span> : <span>Not issued</span>;
+}
+
+function StatusPill({ ready, children }: { ready: boolean; children: React.ReactNode }) {
+  return <span className={`status-pill ${ready ? "is-ready" : "is-pending"}`}><i />{children}</span>;
+}
+
+function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
+  const label = { discovery: "DISCOVER", quote: "QUOTE", payment: "PAYMENT INTENT", verification: "VERIFY", fallback: "ROUTE", settlement: "SETTLE" }[item.kind];
+  return (
+    <li className="trace-event event-enter">
+      <div className="trace-rail" aria-hidden="true"><span className={`trace-node is-${item.status}`} />{!last && <i />}</div>
+      <div className="trace-copy">
+        <div className="trace-meta"><span>{String(item.sequence + 1).padStart(2, "0")}</span><span>{label}</span>{item.amountUsdc !== undefined && <strong>{item.amountUsdc.toFixed(3)} USDC</strong>}</div>
+        <h3>{item.title}</h3><p>{item.detail}</p>
+      </div>
+    </li>
+  );
+}
+
+function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: number }) {
+  const accepted = attempt?.outcome === "accepted";
+  const rejected = attempt?.outcome === "rejected";
+  return (
+    <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
+      <div className="provider-topline"><span>0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "SELECTED" : rejected ? "REJECTED" : "STANDBY"}</span></div>
+      <h3>{attempt?.provider ?? (index === 0 ? "Signal Forge" : "Northstar Data")}</h3>
+      <div className="provider-stats">
+        <div><span>QUOTE</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
+        <div><span>REPUTATION</span><b>{attempt?.reputation ?? (index === 0 ? 71 : 94)} / 100</b></div>
+        <div><span>PROOF</span><b>{attempt?.proofSupport ?? true ? "SUPPORTED" : "MISSING"}</b></div>
+      </div>
+      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "The low quote was not enough. Stale, incomplete evidence triggered automatic fallback." : index === 0 ? "Lowest price enters the verification gate first." : "Higher-trust fallback remains inside the job ceiling."}</p>
+    </article>
+  );
+}
+
+function ProofRow({ check, label }: { check?: VerificationCheck; label: string }) {
+  return (
+    <div className="proof-row">
+      <span className={`proof-icon ${check?.passed ? "pass" : ""}`}>{check ? (check.passed ? "OK" : "NO") : "--"}</span>
+      <strong>{check?.label ?? label}</strong><span>{check?.detail ?? "Waiting for an evidence envelope"}</span>
+    </div>
+  );
+}
 
 export function KnotConsole() {
-  const [events, setEvents] = useState<RunEvent[]>([]);
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [task, setTask] = useState(defaultTask);
+  const [maxPrice, setMaxPrice] = useState("0.030");
+  const [execution, setExecution] = useState<Execution | null>(null);
+  const [visibleEvents, setVisibleEvents] = useState(0);
   const [running, setRunning] = useState(false);
-  const [settled, setSettled] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [system, setSystem] = useState<SystemStatus | null>(null);
 
-  const addEvent = (event: RunEvent) =>
-    setEvents((current) => [...current, event]);
+  useEffect(() => {
+    fetch("/api/system/status").then((response) => response.json()).then((data: SystemStatus) => setSystem(data)).catch(() => setSystem(null));
+  }, []);
+
+  useEffect(() => {
+    if (!execution || visibleEvents >= execution.events.length) return;
+    const timer = window.setTimeout(() => setVisibleEvents((count) => count + 1), visibleEvents === 0 ? 120 : 430);
+    return () => window.clearTimeout(timer);
+  }, [execution, visibleEvents]);
+
+  const acceptedAttempt = useMemo(() => execution?.attempts.find((attempt) => attempt.outcome === "accepted"), [execution]);
+  const visibleTrace = execution?.events.slice(0, visibleEvents) ?? [];
+  const completed = Boolean(execution && visibleEvents >= execution.events.length);
+  const checks = acceptedAttempt?.verification.checks;
+  const busy = running || Boolean(execution && !completed);
 
   async function runAgent() {
-    setEvents([]);
-    setResult(null);
-    setSettled(false);
-    setRunning(true);
-
-    addEvent({
-      eyebrow: "DISCOVERY",
-      title: "2 providers found",
-      detail: "Buyer agent ranked services by price, latency and proof support.",
-      tone: "neutral",
-    });
-    await wait(650);
-
-    addEvent({
-      eyebrow: "ATTEMPT 01 · 0.018 USDC",
-      title: "Signal Forge returned a delivery",
-      detail: "KNOT opened the evidence envelope before settlement.",
-      tone: "neutral",
-    });
-    await wait(650);
-
-    const firstResult = verifyDelivery(obligation, staleDelivery);
-    setResult(firstResult);
-    addEvent({
-      eyebrow: "REJECTED",
-      title: "Stale and incomplete response",
-      detail: "Funds remain protected. The agent is rerouting automatically.",
-      tone: "bad",
-    });
-    await wait(850);
-
-    addEvent({
-      eyebrow: "ATTEMPT 02 · 0.024 USDC",
-      title: "Northstar Data selected",
-      detail: "The fallback stays inside the 0.030 USDC job ceiling.",
-      tone: "neutral",
-    });
-    await wait(700);
-
-    const finalResult = verifyDelivery(obligation, validDelivery);
-    setResult(finalResult);
-    addEvent({
-      eyebrow: "VERIFIED",
-      title: "All delivery conditions passed",
-      detail: "Evidence is ready to authorize USDC settlement on Arc.",
-      tone: "good",
-    });
-    await wait(550);
-
-    setSettled(true);
-    setRunning(false);
+    setError(null); setExecution(null); setVisibleEvents(0); setRunning(true);
+    try {
+      const response = await fetch("/api/executions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task, maxPriceUsdc: Number(maxPrice) }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
+      setExecution(data as Execution);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Execution failed.");
+    } finally {
+      setRunning(false);
+    }
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[1500px] px-5 py-5 sm:px-8 lg:px-12 lg:py-8">
-      <div className="noise" />
-
-      <nav className="flex items-center justify-between border-b border-[var(--line)] pb-5">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--ink)] text-sm font-bold text-[var(--acid)]">
-            K
-          </span>
-          <div>
-            <p className="text-sm font-bold tracking-[0.18em]">KNOT</p>
-            <p className="font-mono text-[10px] text-[var(--muted)]">
-              VERIFICATION-NATIVE SETTLEMENT
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 font-mono text-[10px] font-medium uppercase tracking-[0.12em]">
-          <span className="hidden text-[var(--muted)] sm:inline">Prototype 0.1</span>
-          <span className="rounded-full border border-[var(--line)] bg-white/50 px-3 py-2">
-            <i className="mr-2 inline-block h-2 w-2 rounded-full bg-[var(--mint)]" />
-            Arc Testnet
-          </span>
-        </div>
+    <main>
+      <div className="ambient-grid" />
+      <nav className="site-nav page-shell">
+        <a className="brand" href="#top" aria-label="KNOT home"><KnotMark /><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></a>
+        <div className="nav-status"><span className="version">PROTOTYPE 0.2</span><StatusPill ready={system?.services.verificationEngine === "ready"}>ENGINE READY</StatusPill><StatusPill ready={system?.mode === "live"}>{system?.mode === "live" ? "ARC LIVE" : "LOCAL CLEARING"}</StatusPill></div>
       </nav>
 
-      <header className="grid gap-8 border-b border-[var(--line)] py-12 lg:grid-cols-[1.25fr_0.75fr] lg:items-end lg:py-16">
-        <div>
-          <p className="mb-5 font-mono text-xs font-semibold tracking-[0.2em] text-[var(--muted)]">
-            INTENT → EVIDENCE → SETTLEMENT
-          </p>
-          <h1 className="max-w-5xl text-[clamp(3rem,7.5vw,7.8rem)] font-semibold leading-[0.86] tracking-[-0.075em]">
-            Agents can pay.
-            <br />
-            <span className="text-[var(--muted)]">KNOT checks delivery.</span>
-          </h1>
-        </div>
-        <div className="max-w-xl lg:justify-self-end">
-          <p className="text-lg leading-7 text-[var(--muted)]">
-            A settlement firewall for autonomous commerce. KNOT verifies what a
-            service promised before agent money is released.
-          </p>
-          <div className="mt-7 flex gap-8 border-t border-[var(--line)] pt-5 font-mono text-xs">
-            <div>
-              <span className="block text-[var(--muted)]">RAIL</span>
-              <strong className="mt-1 block">USDC / ARC</strong>
-            </div>
-            <div>
-              <span className="block text-[var(--muted)]">SERVICE</span>
-              <strong className="mt-1 block">x402</strong>
-            </div>
-            <div>
-              <span className="block text-[var(--muted)]">MODE</span>
-              <strong className="mt-1 block">AUTONOMOUS</strong>
-            </div>
+      <header id="top" className="hero page-shell">
+        <div className="hero-kicker"><span>01</span><p>THE TRUST LAYER BETWEEN AGENT INTENT AND MACHINE PAYMENT</p></div>
+        <div className="hero-grid">
+          <h1>Agents can pay.<span>KNOT checks delivery.</span></h1>
+          <div className="hero-aside">
+            <p>Autonomous services should not get paid for stale, malformed, or missing work. KNOT turns a buyer&apos;s intent into enforceable evidence conditions before USDC settlement.</p>
+            <dl><div><dt>NETWORK</dt><dd>ARC TESTNET</dd></div><div><dt>MONEY</dt><dd>USDC</dd></div><div><dt>RAIL</dt><dd>x402</dd></div></dl>
           </div>
         </div>
       </header>
 
-      <section className="grid gap-5 py-5 lg:grid-cols-[0.82fr_1.18fr]">
-        <article className="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_24px_80px_rgba(28,45,37,0.08)] sm:p-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-mono text-[10px] font-semibold tracking-[0.2em] text-[var(--muted)]">
-                ACTIVE OBLIGATION
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em]">
-                Wallet risk signal
-              </h2>
-            </div>
-            <span className="rounded-full bg-[var(--acid)] px-3 py-2 font-mono text-[10px] font-semibold">
-              JOB #001
-            </span>
+      <section className="workspace page-shell" aria-label="KNOT execution workspace">
+        <article className="mission-panel panel-light">
+          <div className="section-heading"><div><span>ACTIVE OBLIGATION</span><h2>Define the job, not every step.</h2></div><span className="job-chip">JOB / 001</span></div>
+          <label className="field-label" htmlFor="task">SERVICE INTENT</label>
+          <textarea id="task" value={task} onChange={(event) => setTask(event.target.value)} maxLength={280} rows={4} />
+          <div className="constraint-grid">
+            <label><span>MAX PRICE</span><select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}><option value="0.025">0.025 USDC</option><option value="0.030">0.030 USDC</option><option value="0.050">0.050 USDC</option></select></label>
+            <div><span>MAX AGE</span><strong>90 SEC</strong></div><div><span>MAX LATENCY</span><strong>1,400 MS</strong></div><div><span>SIGNATURE</span><strong>REQUIRED</strong></div>
           </div>
-
-          <p className="mt-8 border-l-2 border-[var(--ink)] pl-5 text-xl leading-8">
-            Fetch a current, signed risk assessment. Stay below 0.030 USDC and
-            settle only when every proof condition passes.
-          </p>
-
-          <dl className="mt-9 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--line)] font-mono text-xs">
-            {[
-              ["MAX PRICE", "0.030 USDC"],
-              ["MAX AGE", "90 SEC"],
-              ["MAX LATENCY", "1,400 MS"],
-              ["SIGNATURE", "REQUIRED"],
-            ].map(([label, value]) => (
-              <div key={label} className="bg-[#f7f8ef] p-4">
-                <dt className="text-[10px] text-[var(--muted)]">{label}</dt>
-                <dd className="mt-2 font-semibold">{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <button
-            type="button"
-            onClick={runAgent}
-            disabled={running}
-            className="mt-7 flex w-full items-center justify-between rounded-full bg-[var(--ink)] px-6 py-4 text-left text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(11,23,20,0.25)] disabled:cursor-wait disabled:opacity-60"
-          >
-            <span>{running ? "Agent is executing…" : "Run autonomous job"}</span>
-            <span className="font-mono text-[var(--acid)]">→</span>
-          </button>
-          <p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--muted)]">
-            Local verification prototype · no funds move yet
-          </p>
+          <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{busy ? "Agent is clearing the job" : "Run autonomous job"}</span><ArrowIcon /></button>
+          <div className="mode-note"><span>SAFE DEMO MODE</span><p>Real decision API. Simulated value rail. No wallet or funds are used.</p></div>
+          {error && <p className="error-message" role="alert">{error}</p>}
         </article>
 
-        <article className="min-h-[570px] rounded-[2rem] bg-[var(--ink)] p-6 text-white shadow-[0_24px_80px_rgba(11,23,20,0.2)] sm:p-8">
-          <div className="flex items-center justify-between border-b border-white/15 pb-5">
-            <div>
-              <p className="font-mono text-[10px] tracking-[0.2em] text-white/45">
-                AGENT EXECUTION
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
-                Live clearing trace
-              </h2>
-            </div>
-            <span className="font-mono text-[10px] text-white/45">
-              {events.length.toString().padStart(2, "0")} EVENTS
-            </span>
-          </div>
-
-          {events.length === 0 ? (
-            <div className="grid min-h-[440px] place-items-center text-center">
-              <div>
-                <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full border border-dashed border-white/25 font-mono text-xl text-[var(--acid)]">
-                  K
-                </div>
-                <p className="text-lg text-white/70">The agent is standing by.</p>
-                <p className="mt-2 font-mono text-[10px] tracking-[0.12em] text-white/35">
-                  RUN THE JOB TO OBSERVE DECISIONS
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-3">
-              {events.map((event, index) => (
-                <div
-                  key={`${event.eyebrow}-${index}`}
-                  className="event-enter grid grid-cols-[2rem_1fr] gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                >
-                  <span
-                    className={`mt-1 h-3 w-3 rounded-full ${
-                      event.tone === "good"
-                        ? "bg-[var(--mint)]"
-                        : event.tone === "bad"
-                          ? "bg-[var(--danger)]"
-                          : "bg-white/35"
-                    }`}
-                  />
-                  <div>
-                    <p
-                      className={`font-mono text-[9px] font-semibold tracking-[0.16em] ${
-                        event.tone === "good"
-                          ? "text-[var(--mint)]"
-                          : event.tone === "bad"
-                            ? "text-[var(--danger)]"
-                            : "text-white/40"
-                      }`}
-                    >
-                      {event.eyebrow}
-                    </p>
-                    <h3 className="mt-1 font-semibold">{event.title}</h3>
-                    <p className="mt-1 text-sm leading-5 text-white/50">
-                      {event.detail}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <article className="trace-panel">
+          <div className="trace-header"><div><span>AGENT EXECUTION</span><h2>Clearing trace</h2></div><div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>EVENTS</span></div></div>
+          {visibleTrace.length === 0 ? <div className="trace-empty"><KnotMark /><p>The clearing engine is standing by.</p><span>RUN THE OBLIGATION TO INSPECT EVERY DECISION</span></div> : <ol className="trace-list">{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
+          <footer className="trace-footer"><span>EXECUTION ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
         </article>
       </section>
 
-      <section className="grid gap-5 pb-12 lg:grid-cols-[1.18fr_0.82fr]">
-        <article className="rounded-[2rem] border border-[var(--line)] bg-white/55 p-6 sm:p-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-mono text-[10px] font-semibold tracking-[0.2em] text-[var(--muted)]">
-                EVIDENCE ENVELOPE
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em]">
-                Delivery checks
-              </h2>
-            </div>
-            <span
-              className={`rounded-full px-3 py-2 font-mono text-[10px] font-semibold ${
-                result?.accepted
-                  ? "bg-[var(--mint)]/25"
-                  : "border border-[var(--line)]"
-              }`}
-            >
-              {result ? (result.accepted ? "5 / 5 PASS" : "CHECK FAILED") : "WAITING"}
-            </span>
-          </div>
-
-          <div className="mt-6 divide-y divide-[var(--line)] border-y border-[var(--line)]">
-            {(result?.checks ?? [
-              { label: "Price ceiling", passed: false, detail: "—" },
-              { label: "Response latency", passed: false, detail: "—" },
-              { label: "Data freshness", passed: false, detail: "—" },
-              { label: "Required schema", passed: false, detail: "—" },
-              { label: "Provider signature", passed: false, detail: "—" },
-            ]).map((check) => (
-              <div key={check.label} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
-                <span className="font-medium">{check.label}</span>
-                <span className="font-mono text-[11px] text-[var(--muted)]">
-                  {result && (
-                    <b className={check.passed ? "text-[#087452]" : "text-[#c43b2b]"}>
-                      {check.passed ? "PASS · " : "FAIL · "}
-                    </b>
-                  )}
-                  {check.detail}
-                </span>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article
-          className={`rounded-[2rem] border p-6 transition-colors sm:p-8 ${
-            settled
-              ? "border-[var(--mint)] bg-[var(--mint)]/15"
-              : "border-[var(--line)] bg-white/35"
-          }`}
-        >
-          <p className="font-mono text-[10px] font-semibold tracking-[0.2em] text-[var(--muted)]">
-            SETTLEMENT
-          </p>
-          <div className="mt-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="font-mono text-[10px] text-[var(--muted)]">AUTHORIZED</p>
-              <p className="mt-2 text-4xl font-semibold tracking-[-0.06em]">
-                {settled ? "0.024" : "0.000"}
-                <span className="ml-2 text-base tracking-normal">USDC</span>
-              </p>
-            </div>
-            <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--ink)] font-mono text-[var(--acid)]">
-              {settled ? "✓" : "—"}
-            </span>
-          </div>
-          <p className="mt-8 text-sm leading-6 text-[var(--muted)]">
-            {settled
-              ? "Verification passed. The next milestone connects this authorization to an ERC-8183 job on Arc Testnet."
-              : "No settlement can be authorized until the evidence envelope satisfies every obligation."}
-          </p>
-        </article>
+      <section className="results page-shell">
+        <div className="section-index"><span>02</span><p>MARKET SELECTION</p></div>
+        <div className="provider-grid"><ProviderCard attempt={execution?.attempts[0]} index={0} /><ProviderCard attempt={execution?.attempts[1]} index={1} /></div>
+        <div className="evidence-grid">
+          <article className="proof-panel panel-light">
+            <div className="section-heading compact"><div><span>EVIDENCE ENVELOPE</span><h2>Verification matrix</h2></div><span className={`proof-score ${completed ? "ready" : ""}`}>{completed ? `${checks?.filter((check) => check.passed).length ?? 0} / 5 PASS` : "WAITING"}</span></div>
+            <div className="proof-list">{proofLabels.map((label, index) => <ProofRow key={label} label={label} check={checks?.[index]} />)}</div>
+          </article>
+          <article className={`settlement-panel ${completed ? "is-authorized" : ""}`}>
+            <div className="settlement-orbit" aria-hidden="true"><i /><i /><i /></div>
+            <div className="settlement-heading"><span>SETTLEMENT AUTHORIZATION</span><b>{completed ? "AUTHORIZED" : "LOCKED"}</b></div>
+            <p className="settlement-amount">{completed ? execution?.settlement.amountUsdc.toFixed(3) : "0.000"}<span>USDC</span></p>
+            <dl className="settlement-data"><div><dt>RAIL</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>EVIDENCE</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>ONCHAIN TX</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div></dl>
+            <p className="settlement-disclaimer">{completed ? "The evidence is accepted. Live mode will pass this commitment to the KNOT ERC-8183 hook before value can move." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
+          </article>
+        </div>
       </section>
+
+      <section className="architecture page-shell">
+        <div className="section-index light"><span>03</span><p>THE PROTOCOL KNOT</p></div>
+        <div className="architecture-head"><h2>Payment is easy.<br />Proof is the hard part.</h2><p>KNOT is not another agent wallet. It is the policy and evidence layer that sits between service delivery and programmable money.</p></div>
+        <div className="flow-map">{[["01", "INTENT", "Buyer defines measurable constraints"], ["02", "MARKET", "Providers expose paid services over x402"], ["03", "EVIDENCE", "KNOT verifies output and binds its hash"], ["04", "SETTLE", "ERC-8183 releases USDC or keeps it blocked"]].map(([number, title, copy], index) => <div className="flow-node" key={title}><span>{number}</span><h3>{title}</h3><p>{copy}</p>{index < 3 && <ArrowIcon />}</div>)}</div>
+        <div className="protocol-strip"><p><span>CIRCLE GATEWAY</span>Gas-free x402 nanopayment path after deposit</p><p><span>ERC-8183</span>Job lifecycle and escrow-compatible completion hook</p><p><span>ERC-8004</span>Identity and outcome reputation surface</p></div>
+      </section>
+
+      <footer className="site-footer page-shell"><div className="brand"><KnotMark /><span><b>KNOT</b><small>PAY FOR VERIFIED OUTCOMES</small></span></div><p>Built for autonomous commerce on Arc.</p><div><span>ARC TESTNET</span><span>USDC</span><span>x402</span><span>ERC-8183</span></div></footer>
     </main>
   );
 }
