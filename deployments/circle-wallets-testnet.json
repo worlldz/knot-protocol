@@ -1,0 +1,13 @@
+{
+  "network": "ARC-TESTNET",
+  "walletSet": {
+    "id": "f6ee2974-1230-5ac5-a768-5984a0f0533e",
+    "name": "KNOT User Agents"
+  },
+  "bootstrapWallet": {
+    "id": "cc65a0bd-ff8a-558a-bd93-77c9609ce574",
+    "address": "0x66fd1d63bab850531867b2efa331b791feb08602",
+    "refId": "0x20bbf0cc5f509b1a84a980a9165e10cd5a5412d9",
+    "accountType": "EOA"
+  }
+}

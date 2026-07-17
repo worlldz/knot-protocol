@@ -144,6 +144,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 .metric-glyph { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 34px; border-radius: 10px; background: color-mix(in srgb, var(--acid) 12%, var(--panel-solid)); color: var(--acid); font-family: "Bahnschrift", sans-serif; font-size: 12px; font-style: normal; font-weight: 800; }
 .ribbon-metric > span { display: flex; flex-direction: column; gap: 5px; }
 .ribbon-metric b { font-size: 13px; font-weight: 750; }
+.ribbon-action.is-agent-ready { background: var(--mint); }
+.ribbon-error { grid-column: 1 / -1; min-height: 0 !important; margin: 0; border-top: 1px solid color-mix(in srgb, var(--red) 28%, var(--line)); border-right: 0 !important; background: color-mix(in srgb, var(--red) 7%, var(--panel)); padding: 10px 18px; color: var(--red); font-size: 11px; line-height: 1.45; }
 .ribbon-action { min-width: 175px; display: flex; align-items: center; justify-content: center; gap: 16px; border: 0; background: var(--acid); color: #0a150f; padding: 0 20px; font-size: 12px; font-weight: 800; cursor: pointer; }
 .ribbon-action:hover svg { transform: translateX(3px); }
 .ribbon-action svg { width: 18px; transition: transform .2s; }

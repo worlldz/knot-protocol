@@ -12,6 +12,7 @@ import {
   requestDifferentAccount,
   shortAddress,
 } from "@/lib/arc-network";
+import { createAgentAuthorizationMessage } from "@/lib/knot/agent-auth";
 import type { Execution, ExecutionEvent, ProviderAttempt, VerificationCheck } from "@/lib/knot/schemas";
 
 type SystemStatus = {
@@ -22,6 +23,8 @@ type SystemStatus = {
 type View = "console" | "payment" | "explore";
 type Theme = "light" | "dark";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
+type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET" };
+type AgentWalletState = { wallet: AgentWallet | null; busy: boolean; error: string | null; activate: () => Promise<void> };
 
 const defaultTask = "Fetch a current, signed wallet risk assessment and return a confidence score.";
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
@@ -239,6 +242,45 @@ function useArcWallet() {
   return { account, chainId, balance, busy, error, connect, disconnect, changeAccount, addOrSwitchArc, refresh };
 }
 
+function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletState {
+  const [agentWallet, setAgentWallet] = useState<AgentWallet | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const activate = useCallback(async () => {
+    setError(null);
+    let owner = wallet.account;
+    if (!owner) owner = await wallet.connect();
+    if (!owner) return;
+
+    const provider = getInjectedProvider();
+    if (!provider) return setError("No injected wallet was detected.");
+    setBusy(true);
+    try {
+      const issuedAt = new Date().toISOString();
+      const message = createAgentAuthorizationMessage(owner, issuedAt);
+      const signature = await provider.request({ method: "personal_sign", params: [message, owner] });
+      if (typeof signature !== "string") throw new Error("The wallet did not return a signature.");
+
+      const response = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ owner, issuedAt, signature }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Agent wallet could not be prepared.");
+      setAgentWallet(data.wallet as AgentWallet);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Agent wallet activation failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [wallet]);
+
+  const activeWallet = agentWallet?.owner === wallet.account?.toLowerCase() ? agentWallet : null;
+  return { wallet: activeWallet, busy, error, activate };
+}
+
 function ThemeButton({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
   return <button className="icon-button" type="button" onClick={onToggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? <SunIcon /> : <MoonIcon />}</button>;
 }
@@ -283,20 +325,23 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
   );
 }
 
-function NetworkRibbon({ wallet, system }: { wallet: ReturnType<typeof useArcWallet>; system: SystemStatus | null }) {
+function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const correctChain = wallet.chainId === ARC_TESTNET.id;
+  const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : () => agent.activate();
+  const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? "Agent is ready" : agent.busy ? "Preparing agent" : "Activate agent";
   return (
     <section className="network-ribbon page-shell" aria-label="Network and payment rail status">
-      <div className="ribbon-intro"><span>Live environment</span><p>KNOT is wired for Arc. Connect a funded wallet when you are ready to move beyond the safe demo.</p></div>
+      <div className="ribbon-intro"><span>{agent.wallet ? "Personal agent online" : "Live environment"}</span><p>{agent.wallet ? `Circle MPC wallet ${shortAddress(agent.wallet.address)} is bound to this connected account.` : "Connect once, authorize your agent, and keep its signing key isolated from the browser."}</p></div>
       <div className="ribbon-metric"><i className="metric-glyph">A</i><span><small>Network</small><b>{correctChain ? "Arc Testnet connected" : "Arc Testnet"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">$</i><span><small>Money</small><b>{wallet.account && correctChain ? `${wallet.balance} USDC` : "Native USDC"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>Rail</small><b>{system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
-      <button type="button" className="ribbon-action" onClick={() => void wallet.addOrSwitchArc()} disabled={wallet.busy}>{correctChain ? "Arc is selected" : "Add Arc Testnet"}<ArrowIcon /></button>
+      <button type="button" className={`ribbon-action ${agent.wallet ? "is-agent-ready" : ""}`} onClick={() => void action()} disabled={wallet.busy || agent.busy || Boolean(agent.wallet)}>{actionLabel}<ArrowIcon /></button>
+      {agent.error && <p className="ribbon-error" role="alert">{agent.error}</p>}
     </section>
   );
 }
 
-function ConsoleView({ wallet, system }: { wallet: ReturnType<typeof useArcWallet>; system: SystemStatus | null }) {
+function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [task, setTask] = useState(defaultTask);
   const [maxPrice, setMaxPrice] = useState("0.030");
   const [execution, setExecution] = useState<Execution | null>(null);
@@ -343,7 +388,7 @@ function ConsoleView({ wallet, system }: { wallet: ReturnType<typeof useArcWalle
         </div>
       </section>
 
-      <NetworkRibbon wallet={wallet} system={system} />
+      <NetworkRibbon wallet={wallet} agent={agent} system={system} />
 
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
@@ -506,6 +551,7 @@ export function KnotConsole() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const wallet = useArcWallet();
+  const agent = useAgentWallet(wallet);
 
   useEffect(() => {
     const syncViewFromHash = () => {
@@ -551,7 +597,7 @@ export function KnotConsole() {
     <main className="app-root">
       <div className="ambient-grid" />
       <SiteHeader view={view} setView={navigateTo} theme={theme} setTheme={updateTheme} wallet={wallet} />
-      {view === "console" && <ConsoleView wallet={wallet} system={system} />}
+      {view === "console" && <ConsoleView wallet={wallet} agent={agent} system={system} />}
       {view === "payment" && <PaymentView wallet={wallet} />}
       {view === "explore" && <ExploreView />}
       <footer className="site-footer page-shell"><div className="brand"><KnotMark /><span><b>KNOT</b><small>PAY FOR VERIFIED OUTCOMES</small></span></div><p>Built for autonomous commerce on Arc.</p><div><span>ARC TESTNET</span><span>USDC</span><span>x402</span><span>ERC-8183</span></div></footer>
