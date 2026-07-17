@@ -22,6 +22,7 @@ type SystemStatus = {
 
 type View = "console" | "payment" | "explore";
 type Theme = "light" | "dark";
+type PolicyPreset = "economy" | "balanced" | "strict" | "custom";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
 type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string };
 type AgentWalletState = {
@@ -36,6 +37,11 @@ type AgentWalletState = {
 
 const defaultTask = "Fetch a current, signed wallet risk assessment and return a confidence score.";
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
+const policyPresets = {
+  economy: { maxPrice: "0.025", maxAge: 300, maxLatency: 3_000, requireSignature: false },
+  balanced: { maxPrice: "0.030", maxAge: 90, maxLatency: 1_400, requireSignature: true },
+  strict: { maxPrice: "0.050", maxAge: 30, maxLatency: 800, requireSignature: true },
+} as const;
 
 const resources = [
   { number: "01", label: "Arc network", title: "The stablecoin-native L1", copy: "Learn how Arc makes programmable money feel immediate, predictable, and EVM-native.", href: "https://www.arc.io/", tone: "lime" },
@@ -440,6 +446,10 @@ function AgentControlStrip({ agent, maxPrice }: { agent: AgentWalletState; maxPr
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [task, setTask] = useState(defaultTask);
   const [maxPrice, setMaxPrice] = useState("0.030");
+  const [maxAge, setMaxAge] = useState(90);
+  const [maxLatency, setMaxLatency] = useState(1_400);
+  const [requireSignature, setRequireSignature] = useState(true);
+  const [policyPreset, setPolicyPreset] = useState<PolicyPreset>("balanced");
   const [execution, setExecution] = useState<Execution | null>(null);
   const [visibleEvents, setVisibleEvents] = useState(0);
   const [running, setRunning] = useState(false);
@@ -466,12 +476,32 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const checks = acceptedAttempt?.verification.checks;
   const busy = running || agent.busy || Boolean(execution && !completed);
 
+  function applyPolicy(preset: Exclude<PolicyPreset, "custom">) {
+    const policy = policyPresets[preset];
+    setPolicyPreset(preset);
+    setMaxPrice(policy.maxPrice);
+    setMaxAge(policy.maxAge);
+    setMaxLatency(policy.maxLatency);
+    setRequireSignature(policy.requireSignature);
+  }
+
   async function runAgent() {
     setError(null);
     if (!agent.wallet && !(await agent.activate())) return;
     setExecution(null); setVisibleEvents(0); setRunning(true);
     try {
-      const response = await fetch("/api/executions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task, maxPriceUsdc: Number(maxPrice) }) });
+      const response = await fetch("/api/executions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          task,
+          maxPriceUsdc: Number(maxPrice),
+          maxAgeSeconds: maxAge,
+          maxLatencyMs: maxLatency,
+          requiredFields: ["risk", "confidence", "observedAt"],
+          requireSignature,
+        }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
       setExecution(data as Execution);
@@ -502,21 +532,24 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
-          <div className="section-heading"><div><span>Active obligation</span><h2>Define the job, not every step.</h2></div><span className="job-chip">LIVE DEMO / 001</span></div>
-          <label className="field-label" htmlFor="task">Service intent</label>
+          <div className="section-heading"><div><span>Obligation builder</span><h2>Compose a payable outcome.</h2></div><span className="job-chip">JOB / 001</span></div>
+          <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><span>SERVICE MARKET</span><strong>Wallet risk intelligence</strong><p>Signed assessment · machine-verifiable delivery</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
+          <label className="field-label" htmlFor="task">Outcome request</label>
           <textarea id="task" value={task} onChange={(event) => setTask(event.target.value)} maxLength={280} rows={4} />
-          <div className="obligation-explainer" aria-label="What this example job does">
-            <div><SignalIcon kind="intent" /><span><small>REQUEST</small><strong>Ask providers for a signed wallet-risk report.</strong></span></div>
-            <div><SignalIcon kind="verify" /><span><small>VERIFY</small><strong>Reject stale data, missing fields, or a bad signature.</strong></span></div>
-            <div><SignalIcon kind="settle" /><span><small>PAY</small><strong>Release 0.024 USDC only to the first valid response.</strong></span></div>
+          <div className="policy-heading"><div><span>Execution policy</span><p>Choose a policy or tune every condition yourself.</p></div><strong>{policyPreset.toUpperCase()}</strong></div>
+          <div className="policy-presets" role="group" aria-label="Execution policy preset">
+            {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
           </div>
-          <div className="constraint-grid">
-            <label><span>Max price</span><select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}><option value="0.025">0.025 USDC</option><option value="0.030">0.030 USDC</option><option value="0.050">0.050 USDC</option></select></label>
-            <div><span>Max age</span><strong>90 sec</strong></div><div><span>Max latency</span><strong>1,400 ms</strong></div><div><span>Signature</span><strong>Required</strong></div>
+          <div className="constraint-grid policy-grid">
+            <label><span>Spend ceiling</span><select value={maxPrice} onChange={(event) => { setMaxPrice(event.target.value); setPolicyPreset("custom"); }}><option value="0.025">0.025 USDC</option><option value="0.030">0.030 USDC</option><option value="0.050">0.050 USDC</option></select></label>
+            <label><span>Data freshness</span><select value={maxAge} onChange={(event) => { setMaxAge(Number(event.target.value)); setPolicyPreset("custom"); }}><option value="30">≤ 30 sec</option><option value="90">≤ 90 sec</option><option value="300">≤ 5 min</option></select></label>
+            <label><span>Response latency</span><select value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }}><option value="800">≤ 800 ms</option><option value="1400">≤ 1,400 ms</option><option value="3000">≤ 3,000 ms</option></select></label>
+            <button className={`signature-policy ${requireSignature ? "is-required" : ""}`} type="button" aria-pressed={requireSignature} onClick={() => { setRequireSignature((required) => !required); setPolicyPreset("custom"); }}><span>Provider signature</span><strong>{requireSignature ? "Required" : "Optional"}</strong><i /></button>
           </div>
+          <div className="required-output"><span>Required output</span><div><b>risk</b><b>confidence</b><b>observedAt</b></div><small>All fields must exist before settlement.</small></div>
           <div className="execution-source"><span><i />PROTOCOL-FUNDED TEST RAIL</span><strong>{agent.wallet ? "Agent authorized. No transaction approval is required." : "First run requests a wallet signature."}</strong><p>{agent.wallet ? "This public demo remains protocol-funded, so your connected wallet's USDC is not spent." : "The signature creates your personal Circle MPC agent identity. It does not approve or spend USDC; the demo payment remains protocol-funded."}</p></div>
           <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying delivery" : agent.wallet ? "Run x402 verification demo" : "Authorize agent & run x402 demo"}</span><ArrowIcon /></button>
-          <div className="mode-note"><span>{agent.wallet ? "Personal identity online" : "One clear start"}</span><p>{agent.wallet ? "Your Circle MPC identity is ready. Future demo runs start immediately." : "Use the main run button. KNOT will request the required signature and continue automatically after approval."}</p></div>
+          <div className="policy-summary"><span><i />{maxPrice} USDC max</span><span><i />{maxAge}s fresh</span><span><i />{maxLatency.toLocaleString()}ms latency</span><span><i />{requireSignature ? "signed" : "signature optional"}</span></div>
           {error && <p className="error-message" role="alert">{error}</p>}
         </article>
 
@@ -526,6 +559,18 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
         </article>
       </section>
+
+      {completed && execution && <section className={`execution-receipt page-shell ${execution.status === "verified" ? "is-verified" : "is-blocked"}`} aria-label="Execution receipt">
+        <div className="receipt-mark"><SignalIcon kind={execution.status === "verified" ? "verify" : "intent"} /></div>
+        <div className="receipt-title"><span>SEALED EXECUTION RECEIPT</span><h2>{execution.status === "verified" ? "Delivery verified. Payment unlocked." : "Policy held. Payment remained blocked."}</h2><p>{execution.id} · {new Date(execution.createdAt).toLocaleString()}</p></div>
+        <dl>
+          <div><dt>Provider</dt><dd>{acceptedAttempt?.provider ?? "None accepted"}</dd></div>
+          <div><dt>Policy</dt><dd>{execution.obligation.maxPriceUsdc.toFixed(3)} USDC · {execution.obligation.maxAgeSeconds}s</dd></div>
+          <div><dt>Rail</dt><dd>{execution.settlement.rail.replaceAll("-", " ")}</dd></div>
+          <div><dt>Evidence</dt><dd><ShortHash value={execution.settlement.evidenceHash} /></dd></div>
+        </dl>
+        <a href={`/api/executions/${execution.id}`} target="_blank" rel="noreferrer">Open machine receipt <ExternalIcon /></a>
+      </section>}
 
       <section className="results page-shell">
         <div className="section-index"><span>02</span><p>MARKET SELECTION</p></div>

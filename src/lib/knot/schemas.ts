@@ -82,6 +82,10 @@ export const executionSchema = z.object({
 export const createExecutionSchema = z.object({
   task: z.string().trim().min(12).max(280).optional(),
   maxPriceUsdc: z.number().positive().max(1).optional(),
+  maxLatencyMs: z.number().int().positive().max(30_000).optional(),
+  maxAgeSeconds: z.number().int().positive().max(86_400).optional(),
+  requiredFields: z.array(z.string().min(1)).min(1).max(12).optional(),
+  requireSignature: z.boolean().optional(),
 });
 
 export type Obligation = z.infer<typeof obligationSchema>;

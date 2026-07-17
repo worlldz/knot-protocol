@@ -29,4 +29,14 @@ describe("executeJob", () => {
     expect(execution.settlement.status).toBe("blocked");
     expect(execution.settlement.amountUsdc).toBe(0);
   });
+
+  it("applies caller-defined freshness and latency policy", async () => {
+    const execution = await executeJob({ maxAgeSeconds: 10, maxLatencyMs: 600 });
+
+    expect(execution.obligation.maxAgeSeconds).toBe(10);
+    expect(execution.obligation.maxLatencyMs).toBe(600);
+    expect(execution.status).toBe("failed");
+    expect(execution.attempts.every((attempt) => attempt.outcome === "rejected")).toBe(true);
+    expect(execution.settlement.status).toBe("blocked");
+  });
 });

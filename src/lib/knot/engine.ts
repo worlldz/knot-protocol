@@ -36,6 +36,10 @@ export async function executeJob(
     ...defaultObligation,
     ...(input.task ? { task: input.task } : {}),
     ...(input.maxPriceUsdc ? { maxPriceUsdc: input.maxPriceUsdc } : {}),
+    ...(input.maxLatencyMs ? { maxLatencyMs: input.maxLatencyMs } : {}),
+    ...(input.maxAgeSeconds ? { maxAgeSeconds: input.maxAgeSeconds } : {}),
+    ...(input.requiredFields ? { requiredFields: input.requiredFields } : {}),
+    ...(input.requireSignature !== undefined ? { requireSignature: input.requireSignature } : {}),
   };
   const eligible = providers
     .filter((provider) => provider.priceUsdc <= obligation.maxPriceUsdc)
