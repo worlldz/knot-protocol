@@ -9,20 +9,22 @@ Buyer intent
 Obligation compiler -----> provider discovery and quotes
     |                               |
     |                               v
-    |                      x402 service delivery
+    |                      evidence preview
     |                               |
     v                               v
 Deterministic verifier <---- evidence envelope
     |
     +---- reject ----> fallback policy ----> next provider
     |
-    +---- accept ----> evidence commitment
+    +---- accept ----> x402 paid final delivery
+                              |
+                              +----> Circle Gateway transfer
+                              |
+                              v
+                   evidence commitment
                               |
                               v
                    ERC-8183 completion hook
-                              |
-                              v
-                       USDC settlement
 ```
 
 ## Trust boundaries
@@ -37,7 +39,7 @@ The verifier checks measurable properties and returns every failed condition. It
 
 ### x402 boundary
 
-`POST /api/x402/verify` uses Circle Gateway's testnet facilitator when a valid seller address is configured. In local mode it remains open for development and is reported as configuration-required by the status API.
+`POST /api/providers/northstar-data/settle` uses Circle Gateway's testnet facilitator and charges `0.024 USDC` only after KNOT accepts the provider evidence. `POST /api/x402/verify` exposes the same payment rail for verifier-as-a-service experiments. Both routes remain open in local mode when no seller address is configured.
 
 ### Settlement boundary
 
@@ -60,6 +62,6 @@ The UI renders this record rather than recreating decision logic in the browser.
 1. Replace in-memory execution storage with Postgres or an append-only event store.
 2. Sign evidence envelopes and verify provider signatures cryptographically.
 3. Run the verifier behind an authenticated service or TEE-backed attester.
-4. Connect Circle Agent Wallet and Gateway buyer funding.
-5. Deploy the hook and bind executions to ERC-8183 jobs on Arc Testnet.
+4. Move the locally managed buyer key into Circle Agent Wallet or equivalent policy-controlled custody.
+5. Bind live executions and evidence attestations to the deployed ERC-8183 hook.
 6. Write outcomes to ERC-8004 reputation infrastructure.

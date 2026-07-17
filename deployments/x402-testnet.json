@@ -1,0 +1,14 @@
+{
+  "rail": "Circle Gateway x402 Nanopayments",
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "executionId": "run_d83ad375d77a",
+  "transferId": "a3716247-779f-40bd-ac50-a4978ed0e5ed",
+  "statusObserved": "received",
+  "amountUsdc": "0.024",
+  "buyer": "0x20bBf0cc5F509B1A84A980a9165E10CD5a5412d9",
+  "provider": "0xE39B2cF8168B8BaF4089e7F61B743921f51c9cf4",
+  "evidenceHash": "0x7e758fd3a8f4cfb74a4a1e708bec80694fa37553b09e768dcf11eaf85e88c016",
+  "createdAt": "2026-07-17T18:18:16.728Z",
+  "note": "Gateway accepted the x402 authorization and deducted the buyer balance from 1.000 to 0.976 USDC. Provider credit is finalized by Circle's batch settlement."
+}

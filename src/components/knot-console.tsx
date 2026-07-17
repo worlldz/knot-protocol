@@ -376,10 +376,10 @@ function ConsoleView({ wallet, system }: { wallet: ReturnType<typeof useArcWalle
           </article>
           <article className={`settlement-panel ${completed ? "is-authorized" : ""}`}>
             <div className="settlement-orbit" aria-hidden="true"><i /><i /><i /></div>
-            <div className="settlement-heading"><span>Settlement authorization</span><b>{completed ? "AUTHORIZED" : "LOCKED"}</b></div>
+            <div className="settlement-heading"><span>Settlement result</span><b>{completed ? execution?.settlement.status === "received" ? "X402 RECEIVED" : "AUTHORIZED" : "LOCKED"}</b></div>
             <p className="settlement-amount">{completed ? execution?.settlement.amountUsdc.toFixed(3) : "0.000"}<span>USDC</span></p>
-            <dl className="settlement-data"><div><dt>Rail</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>Evidence</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>Onchain tx</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div></dl>
-            <p className="settlement-disclaimer">{completed ? "The evidence is accepted. Live mode will pass this commitment to the KNOT ERC-8183 hook before value can move." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
+            <dl className="settlement-data"><div><dt>Rail</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>Evidence</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>{execution?.settlement.rail === "x402-gateway" ? "Gateway transfer" : "Onchain tx"}</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div></dl>
+            <p className="settlement-disclaimer">{completed ? execution?.settlement.status === "received" ? "Circle Gateway accepted the x402 transfer. Provider credit finalizes through batched settlement." : "The evidence is accepted. The commitment is ready for the KNOT ERC-8183 completion hook." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
           </article>
         </div>
       </section>

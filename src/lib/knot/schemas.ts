@@ -70,7 +70,7 @@ export const executionSchema = z.object({
   events: z.array(executionEventSchema),
   attempts: z.array(providerAttemptSchema),
   settlement: z.object({
-    status: z.enum(["authorized", "blocked", "settled"]),
+    status: z.enum(["authorized", "blocked", "received", "settled"]),
     amountUsdc: z.number().nonnegative(),
     recipient: z.string().nullable(),
     rail: z.enum(["simulated", "x402-gateway", "erc-8183"]),

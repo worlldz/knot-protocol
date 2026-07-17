@@ -16,7 +16,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const execution = await executeJob(parsed.data);
+  const execution = await executeJob(parsed.data, undefined, {
+    origin: new URL(request.url).origin,
+  });
   saveExecution(execution);
 
   return NextResponse.json(execution, { status: 201 });

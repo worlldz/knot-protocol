@@ -1,0 +1,14 @@
+{
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "contract": "KnotVerificationHook",
+  "address": "0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004",
+  "deploymentTransaction": "0xad2a38a80fe72a92c2b6d6907086beea3c675c430cda56e491da1b62a50bfb2d",
+  "blockNumber": 52308497,
+  "deployedAt": "2026-07-17T18:03:48.000000Z",
+  "commerceProtocol": "0x0747EEf0706327138c69792bF28Cd525089e4583",
+  "admin": "0x20bBf0cc5F509B1A84A980a9165E10CD5a5412d9",
+  "verifier": "0x20bBf0cc5F509B1A84A980a9165E10CD5a5412d9",
+  "verified": true,
+  "explorerUrl": "https://testnet.arcscan.app/address/0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004"
+}

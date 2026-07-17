@@ -29,7 +29,9 @@ function event(
 export async function executeJob(
   input: CreateExecutionInput = {},
   providers: ServiceProvider[] = localProviders,
+  options: { origin?: string } = {},
 ): Promise<Execution> {
+  const executionId = `run_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const obligation: Obligation = {
     ...defaultObligation,
     ...(input.task ? { task: input.task } : {}),
@@ -114,18 +116,93 @@ export async function executeJob(
         detail: "Price, latency, freshness, schema, and signature checks passed.",
         providerId: provider.id,
       }),
-      event(events.length + 1, {
-        kind: "settlement",
-        status: "success",
-        title: `${provider.priceUsdc.toFixed(3)} USDC authorized`,
-        detail: "The accepted evidence hash is now bound to settlement authorization.",
-        providerId: provider.id,
-        amountUsdc: provider.priceUsdc,
-      }),
     );
 
+    const canSettleLive = provider.id === "northstar-data"
+      && Boolean(options.origin)
+      && Boolean(process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x"))
+      && Boolean(process.env.X402_SELLER_ADDRESS);
+
+    if (canSettleLive) {
+      try {
+        const { payForResource } = await import("../x402/client");
+        const paid = await payForResource<{
+          provider: string;
+          executionId: string;
+          evidenceHash: string;
+        }>(`${options.origin}/api/providers/northstar-data/settle`, {
+          executionId,
+          evidenceHash: delivery.evidenceHash,
+        });
+
+        events.push(event(events.length, {
+          kind: "settlement",
+          status: "success",
+          title: `${paid.amountUsdc} USDC accepted over x402`,
+          detail: "Gateway received the agent authorization and released the verified provider response for batched settlement.",
+          providerId: provider.id,
+          amountUsdc: provider.priceUsdc,
+        }));
+
+        return executionSchema.parse({
+          id: executionId,
+          createdAt: new Date().toISOString(),
+          mode: "live",
+          status: "verified",
+          obligation,
+          events,
+          attempts,
+          settlement: {
+            status: "received",
+            amountUsdc: provider.priceUsdc,
+            recipient: process.env.X402_SELLER_ADDRESS,
+            rail: "x402-gateway",
+            evidenceHash: delivery.evidenceHash,
+            transactionHash: paid.transactionHash,
+          },
+        });
+      } catch (cause) {
+        const detail = cause instanceof Error ? cause.message : "The x402 payment could not be completed.";
+        events.push(event(events.length, {
+          kind: "settlement",
+          status: "failure",
+          title: "x402 settlement blocked",
+          detail,
+          providerId: provider.id,
+          amountUsdc: provider.priceUsdc,
+        }));
+
+        return executionSchema.parse({
+          id: executionId,
+          createdAt: new Date().toISOString(),
+          mode: "live",
+          status: "failed",
+          obligation,
+          events,
+          attempts,
+          settlement: {
+            status: "blocked",
+            amountUsdc: 0,
+            recipient: process.env.X402_SELLER_ADDRESS,
+            rail: "x402-gateway",
+            evidenceHash: delivery.evidenceHash,
+            transactionHash: null,
+          },
+        });
+      }
+    }
+
+    events.push(event(events.length, {
+      kind: "settlement",
+      status: "success",
+      title: `${provider.priceUsdc.toFixed(3)} USDC authorized`,
+      detail: "The accepted evidence hash is now bound to settlement authorization.",
+      providerId: provider.id,
+      amountUsdc: provider.priceUsdc,
+    }));
+
     return executionSchema.parse({
-      id: `run_${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+      id: executionId,
       createdAt: new Date().toISOString(),
       mode: "local",
       status: "verified",
@@ -153,7 +230,7 @@ export async function executeJob(
   );
 
   return executionSchema.parse({
-    id: `run_${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+    id: executionId,
     createdAt: new Date().toISOString(),
     mode: "local",
     status: "failed",
