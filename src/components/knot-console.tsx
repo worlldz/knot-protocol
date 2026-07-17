@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAddress } from "viem";
 import {
   ARC_TESTNET,
@@ -84,14 +84,15 @@ function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: nu
   const rejected = attempt?.outcome === "rejected";
   return (
     <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
-      <div className="provider-topline"><span>0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "SELECTED" : rejected ? "REJECTED" : "STANDBY"}</span></div>
+      <div className="provider-topline"><span>SIMULATED PROVIDER / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "SELECTED" : rejected ? "REJECTED" : "STANDBY"}</span></div>
       <h3>{attempt?.provider ?? (index === 0 ? "Signal Forge" : "Northstar Data")}</h3>
       <div className="provider-stats">
         <div><span>Quote</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
         <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 71 : 94)} / 100</b></div>
         <div><span>Proof</span><b>{attempt?.proofSupport ?? true ? "Supported" : "Missing"}</b></div>
       </div>
-      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "The low quote was not enough. Stale, incomplete evidence triggered automatic fallback." : index === 0 ? "Lowest price enters the verification gate first." : "Higher-trust fallback remains inside the job ceiling."}</p>
+      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "The low quote was not enough. Stale, incomplete evidence triggered automatic fallback." : index === 0 ? "A local demo fixture: the cheaper response intentionally fails freshness so KNOT can demonstrate autonomous fallback." : "A local demo fixture: the higher-trust provider returns current, complete evidence inside the job ceiling."}</p>
+      <p className="provider-fixture">Demo reputation scores are fixed in local mode. Live providers will supply verifiable reputation signals.</p>
     </article>
   );
 }
@@ -111,6 +112,7 @@ function useArcWallet() {
   const [balance, setBalance] = useState("0.00");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const disconnected = useRef(false);
 
   const refresh = useCallback(async () => {
     const provider = getInjectedProvider();
@@ -120,7 +122,7 @@ function useArcWallet() {
       provider.request({ method: "eth_chainId" }),
     ]);
     const accounts = Array.isArray(accountsValue) ? accountsValue.filter((item): item is string => typeof item === "string") : [];
-    const nextAccount = accounts[0] ?? null;
+    const nextAccount = disconnected.current ? null : accounts[0] ?? null;
     const nextChain = parseChainId(chainValue);
     setAccount(nextAccount);
     setChainId(nextChain);
@@ -157,6 +159,7 @@ function useArcWallet() {
     }
     setBusy(true); setError(null);
     try {
+      disconnected.current = false;
       const accountsValue = await provider.request({ method: "eth_requestAccounts" });
       const accounts = Array.isArray(accountsValue) ? accountsValue.filter((item): item is string => typeof item === "string") : [];
       await refresh();
@@ -164,6 +167,41 @@ function useArcWallet() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Wallet connection was declined.");
       return null;
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
+
+  const disconnect = useCallback(async () => {
+    const provider = getInjectedProvider();
+    disconnected.current = true;
+    setAccount(null); setBalance("0.00"); setError(null);
+    if (!provider) return;
+    try {
+      await provider.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+    } catch {
+      // Some injected wallets do not expose permission revocation; local session disconnect still applies.
+    }
+  }, []);
+
+  const changeAccount = useCallback(async () => {
+    const provider = getInjectedProvider();
+    if (!provider) {
+      setError("No injected wallet detected. Install MetaMask, Rabby, or Coinbase Wallet.");
+      return;
+    }
+    setBusy(true); setError(null); disconnected.current = false;
+    try {
+      try {
+        await provider.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+      } catch (cause) {
+        const code = typeof cause === "object" && cause !== null && "code" in cause ? Number((cause as { code: unknown }).code) : null;
+        if (code !== -32601) throw cause;
+        await provider.request({ method: "eth_requestAccounts" });
+      }
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The wallet account selector could not be opened.");
     } finally {
       setBusy(false);
     }
@@ -203,7 +241,7 @@ function useArcWallet() {
     }
   }, [refresh]);
 
-  return { account, chainId, balance, busy, error, connect, addOrSwitchArc, refresh, hasProvider: Boolean(getInjectedProvider()) };
+  return { account, chainId, balance, busy, error, connect, disconnect, changeAccount, addOrSwitchArc, refresh };
 }
 
 function ThemeButton({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
@@ -211,6 +249,7 @@ function ThemeButton({ theme, onToggle }: { theme: Theme; onToggle: () => void }
 }
 
 function WalletDock({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const wrongChain = Boolean(wallet.account && wallet.chainId !== ARC_TESTNET.id);
   return (
     <div className="wallet-dock">
@@ -218,9 +257,16 @@ function WalletDock({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
         <span className="network-dot" />
         <span><small>{wrongChain ? "Wrong network" : wallet.chainId === ARC_TESTNET.id ? "Arc Testnet" : "Network"}</small><b>{wrongChain ? "Switch to Arc" : wallet.chainId === ARC_TESTNET.id ? `${wallet.balance} USDC` : "Add Arc Testnet"}</b></span>
       </button>
-      <button className="wallet-button" type="button" onClick={() => void wallet.connect()} disabled={wallet.busy}>
-        <WalletIcon /><span><small>{wallet.account ? "Connected wallet" : "Wallet"}</small><b>{wallet.account ? shortAddress(wallet.account) : wallet.busy ? "Connecting..." : "Connect wallet"}</b></span>
-      </button>
+      <div className="wallet-menu-shell">
+        <button className="wallet-button" type="button" onClick={() => wallet.account ? setMenuOpen((open) => !open) : void wallet.connect()} disabled={wallet.busy} aria-expanded={wallet.account ? menuOpen : undefined}>
+          <WalletIcon /><span><small>{wallet.account ? "Connected wallet" : "Wallet"}</small><b>{wallet.account ? shortAddress(wallet.account) : wallet.busy ? "Connecting..." : "Connect wallet"}</b></span>
+        </button>
+        {wallet.account && menuOpen && <div className="wallet-popover" role="dialog" aria-label="Connected wallet options">
+          <div className="wallet-popover-head"><span>Connected account</span><strong>{shortAddress(wallet.account)}</strong><small>{wallet.chainId === ARC_TESTNET.id ? `${wallet.balance} USDC on Arc` : "Switch to Arc to read balance"}</small></div>
+          <button type="button" onClick={() => { setMenuOpen(false); void wallet.changeAccount(); }}>Change account <ArrowIcon /></button>
+          <button className="disconnect-action" type="button" onClick={() => { setMenuOpen(false); void wallet.disconnect(); }}>Disconnect</button>
+        </div>}
+      </div>
     </div>
   );
 }
@@ -436,8 +482,8 @@ function ExploreView() {
   return (
     <section className="view-page explore-page page-shell">
       <div className="view-hero explore-hero">
-        <div><span className="eyebrow">ECOSYSTEM FIELD GUIDE</span><h1>Understand the rail.<br /><em>Then build beyond it.</em></h1></div>
-        <p>A focused map of the Arc and Circle resources behind KNOT: the network, stablecoin settlement, agent standards, and x402 machine payments.</p>
+        <div><span className="eyebrow">ECOSYSTEM FIELD GUIDE</span><h1><span>Understand the rail.</span><em>Then build beyond it.</em></h1></div>
+        <div className="explore-aside"><p>A focused map of the Arc and Circle resources behind KNOT: the network, stablecoin settlement, agent standards, and x402 machine payments.</p><dl><div><dt>Native value</dt><dd>USDC</dd></div><div><dt>Finality</dt><dd>Sub-second</dd></div><div><dt>Machine rail</dt><dd>x402</dd></div></dl></div>
       </div>
 
       <BuildOnArcBand />
