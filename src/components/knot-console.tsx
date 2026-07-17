@@ -132,14 +132,14 @@ function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: nu
   const rejected = attempt?.outcome === "rejected";
   return (
     <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
-      <div className="provider-topline"><span>SIMULATED PROVIDER / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "SELECTED" : rejected ? "REJECTED" : "STANDBY"}</span></div>
+      <div className="provider-topline"><span>DEMO PROVIDER / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "VERIFIED & SELECTED" : rejected ? "EVIDENCE FAILED" : "STANDBY"}</span></div>
       <h3>{attempt?.provider ?? (index === 0 ? "Signal Forge" : "Northstar Data")}</h3>
       <div className="provider-stats">
         <div><span>Quote</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
         <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 71 : 94)} / 100</b></div>
         <div><span>Proof</span><b>{attempt?.proofSupport ?? true ? "Supported" : "Missing"}</b></div>
       </div>
-      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "The low quote was not enough. Stale, incomplete evidence triggered automatic fallback." : index === 0 ? "A local demo fixture: the cheaper response intentionally fails freshness so KNOT can demonstrate autonomous fallback." : "A local demo fixture: the higher-trust provider returns current, complete evidence inside the job ceiling."}</p>
+      <p className="provider-note">{accepted ? "Evidence met the full obligation. This provider received settlement authorization." : rejected ? "Rejected evidence: stale data and a schema mismatch. No payment was released, so KNOT automatically routed the job to the next eligible provider." : index === 0 ? "A local demo fixture: the cheaper response intentionally fails freshness so KNOT can demonstrate autonomous fallback." : "A local demo fixture: the higher-trust provider returns current, complete evidence inside the job ceiling."}</p>
       <p className="provider-fixture">Demo reputation scores are fixed in local mode. Live providers will supply verifiable reputation signals.</p>
     </article>
   );
