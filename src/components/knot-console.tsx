@@ -30,7 +30,7 @@ type AgentWalletState = {
   funding: boolean;
   error: string | null;
   fundHash: string | null;
-  activate: () => Promise<void>;
+  activate: () => Promise<boolean>;
   fund: () => Promise<void>;
 };
 
@@ -309,10 +309,13 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
     setError(null);
     let owner = wallet.account;
     if (!owner) owner = await wallet.connect();
-    if (!owner) return;
+    if (!owner) return false;
 
     const provider = getInjectedProvider();
-    if (!provider) return setError("No injected wallet was detected.");
+    if (!provider) {
+      setError("No injected wallet was detected.");
+      return false;
+    }
     setBusy(true);
     try {
       const issuedAt = new Date().toISOString();
@@ -323,8 +326,10 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
       const auth = { owner, issuedAt, signature };
       authorization.current = auth;
       await requestAgentWallet(auth);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Agent wallet activation failed.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -459,10 +464,12 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const visibleTrace = execution?.events.slice(0, visibleEvents) ?? [];
   const completed = Boolean(execution && visibleEvents >= execution.events.length);
   const checks = acceptedAttempt?.verification.checks;
-  const busy = running || Boolean(execution && !completed);
+  const busy = running || agent.busy || Boolean(execution && !completed);
 
   async function runAgent() {
-    setError(null); setExecution(null); setVisibleEvents(0); setRunning(true);
+    setError(null);
+    if (!agent.wallet && !(await agent.activate())) return;
+    setExecution(null); setVisibleEvents(0); setRunning(true);
     try {
       const response = await fetch("/api/executions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task, maxPriceUsdc: Number(maxPrice) }) });
       const data = await response.json();
@@ -507,9 +514,9 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             <label><span>Max price</span><select value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)}><option value="0.025">0.025 USDC</option><option value="0.030">0.030 USDC</option><option value="0.050">0.050 USDC</option></select></label>
             <div><span>Max age</span><strong>90 sec</strong></div><div><span>Max latency</span><strong>1,400 ms</strong></div><div><span>Signature</span><strong>Required</strong></div>
           </div>
-          <div className="execution-source"><span><i />PROTOCOL-FUNDED TEST RAIL</span><strong>No wallet transaction popup is expected.</strong><p>This run uses KNOT&apos;s funded backend agent. Your connected wallet is identity-only and none of its USDC is spent.</p></div>
-          <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{busy ? "Agent is verifying delivery" : "Run x402 verification demo"}</span><ArrowIcon /></button>
-          <div className="mode-note"><span>{agent.wallet ? "Personal identity online" : "Want your own agent?"}</span><p>{agent.wallet ? "Your Circle MPC identity is ready, while this public demo remains protocol-funded for safe testing." : "Use Activate agent above to create a personal Circle MPC identity. That signature does not spend funds."}</p></div>
+          <div className="execution-source"><span><i />PROTOCOL-FUNDED TEST RAIL</span><strong>{agent.wallet ? "Agent authorized. No transaction approval is required." : "First run requests a wallet signature."}</strong><p>{agent.wallet ? "This public demo remains protocol-funded, so your connected wallet's USDC is not spent." : "The signature creates your personal Circle MPC agent identity. It does not approve or spend USDC; the demo payment remains protocol-funded."}</p></div>
+          <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying delivery" : agent.wallet ? "Run x402 verification demo" : "Authorize agent & run x402 demo"}</span><ArrowIcon /></button>
+          <div className="mode-note"><span>{agent.wallet ? "Personal identity online" : "One clear start"}</span><p>{agent.wallet ? "Your Circle MPC identity is ready. Future demo runs start immediately." : "Use the main run button. KNOT will request the required signature and continue automatically after approval."}</p></div>
           {error && <p className="error-message" role="alert">{error}</p>}
         </article>
 
