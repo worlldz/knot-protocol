@@ -23,7 +23,7 @@ type SystemStatus = {
 type View = "console" | "payment" | "explore";
 type Theme = "light" | "dark";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
-type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET" };
+type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string };
 type AgentWalletState = { wallet: AgentWallet | null; busy: boolean; error: string | null; activate: () => Promise<void> };
 
 const defaultTask = "Fetch a current, signed wallet risk assessment and return a confidence score.";
@@ -68,6 +68,20 @@ function ShortHash({ value }: { value: string | null }) {
 
 function StatusPill({ ready, children }: { ready: boolean; children: React.ReactNode }) {
   return <span className={`status-pill ${ready ? "is-ready" : "is-pending"}`}><i />{children}</span>;
+}
+
+function EvidencePulse() {
+  return (
+    <div className="evidence-pulse" aria-hidden="true">
+      <div className="pulse-orbit orbit-one"><i /></div>
+      <div className="pulse-orbit orbit-two"><i /></div>
+      <div className="pulse-core"><span>5 / 5</span><strong>PROOF</strong></div>
+      <span className="pulse-node node-intent">INTENT</span>
+      <span className="pulse-node node-market">MARKET</span>
+      <span className="pulse-node node-verify">VERIFY</span>
+      <span className="pulse-node node-settle">SETTLE</span>
+    </div>
+  );
 }
 
 function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
@@ -341,6 +355,22 @@ function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof us
   );
 }
 
+function AgentControlStrip({ agent, maxPrice }: { agent: AgentWalletState; maxPrice: string }) {
+  const balance = Number(agent.wallet?.balanceUsdc ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return (
+    <section className={`agent-control page-shell ${agent.wallet ? "is-online" : ""}`} aria-label="Personal agent controls">
+      <div className="agent-control-lead">
+        <div className="agent-avatar"><KnotMark /><span /></div>
+        <div><span>PERSONAL EXECUTION AGENT</span><h2>{agent.wallet ? "Agent authority is online." : "Your agent waits for authority."}</h2></div>
+      </div>
+      <div className="agent-control-metric"><span>Circle MPC wallet</span><strong>{agent.wallet ? shortAddress(agent.wallet.address) : "Not authorized"}</strong><small>Key material stays outside the browser</small></div>
+      <div className="agent-control-metric"><span>Spend policy</span><strong>{maxPrice} USDC / job</strong><small>Hard ceiling before provider selection</small></div>
+      <div className="agent-control-metric"><span>Settlement authority</span><strong>Verify, then pay</strong><small>No valid evidence, no authorization</small></div>
+      <div className="agent-balance"><span>AGENT BALANCE</span><strong>{balance}<small>USDC</small></strong><i>{agent.wallet ? "ARC TESTNET" : "OFFLINE"}</i></div>
+    </section>
+  );
+}
+
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [task, setTask] = useState(defaultTask);
   const [maxPrice, setMaxPrice] = useState("0.030");
@@ -348,12 +378,21 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const [visibleEvents, setVisibleEvents] = useState(0);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const traceListRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
     if (!execution || visibleEvents >= execution.events.length) return;
     const timer = window.setTimeout(() => setVisibleEvents((count) => count + 1), visibleEvents === 0 ? 120 : 430);
     return () => window.clearTimeout(timer);
   }, [execution, visibleEvents]);
+
+  useEffect(() => {
+    if (visibleEvents < 5 || !traceListRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      traceListRef.current?.scrollTo({ top: traceListRef.current.scrollHeight, behavior: "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [visibleEvents]);
 
   const acceptedAttempt = useMemo(() => execution?.attempts.find((attempt) => attempt.outcome === "accepted"), [execution]);
   const visibleTrace = execution?.events.slice(0, visibleEvents) ?? [];
@@ -381,14 +420,17 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         <div className="hero-kicker"><span>01</span><p>THE TRUST LAYER BETWEEN AGENT INTENT AND MACHINE PAYMENT</p></div>
         <div className="hero-grid">
           <h1>Agents can pay.<span>KNOT checks delivery.</span></h1>
-          <div className="hero-aside">
-            <p>Autonomous services should not get paid for stale, malformed, or missing work. KNOT turns a buyer&apos;s intent into enforceable evidence conditions before USDC settlement.</p>
+          <div className="hero-aside hero-trust-card">
+            <div className="hero-aside-status"><span><i />TRUST ENGINE</span><b>LIVE / ARC TESTNET</b></div>
+            <EvidencePulse />
+            <p><strong>Payment is not proof of delivery.</strong> KNOT turns an agent&apos;s intent into enforceable evidence conditions, rejects stale or malformed work, and authorizes USDC only after every check passes.</p>
             <div className="hero-proof"><span><i />Evidence-bound</span><span><i />Fallback-aware</span><span><i />Settlement-safe</span></div>
           </div>
         </div>
       </section>
 
       <NetworkRibbon wallet={wallet} agent={agent} system={system} />
+      <AgentControlStrip agent={agent} maxPrice={maxPrice} />
 
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
@@ -400,13 +442,13 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             <div><span>Max age</span><strong>90 sec</strong></div><div><span>Max latency</span><strong>1,400 ms</strong></div><div><span>Signature</span><strong>Required</strong></div>
           </div>
           <button className="run-button" type="button" onClick={runAgent} disabled={busy || task.trim().length < 12}><span>{busy ? "Agent is clearing the job" : "Run autonomous job"}</span><ArrowIcon /></button>
-          <div className="mode-note"><span>Safe demo mode</span><p>Real decision API. Simulated value rail. No wallet or funds are used by this console run.</p></div>
+          <div className="mode-note"><span>{agent.wallet ? "Agent identity ready" : "Protected execution"}</span><p>{agent.wallet ? "Your Circle MPC wallet is bound to this session. Every provider still has to satisfy the obligation before settlement." : "The decision engine can be inspected safely before you authorize a personal agent wallet."}</p></div>
           {error && <p className="error-message" role="alert">{error}</p>}
         </article>
 
         <article className="trace-panel">
           <div className="trace-header"><div><span>Agent execution</span><h2>Clearing trace</h2></div><div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>Events</span></div></div>
-          {visibleTrace.length === 0 ? <div className="trace-empty"><KnotMark /><p>The clearing engine is standing by.</p><span>Run the obligation to inspect every decision</span></div> : <ol className="trace-list">{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
+          {visibleTrace.length === 0 ? <div className="trace-empty"><KnotMark /><p>The clearing engine is standing by.</p><span>Run the obligation to inspect every decision</span></div> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
           <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
         </article>
       </section>

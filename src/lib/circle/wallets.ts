@@ -9,6 +9,7 @@ export type AgentWallet = {
   owner: string;
   accountType: string;
   blockchain: typeof ARC_BLOCKCHAIN;
+  balanceUsdc: string;
 };
 
 function getCircleClient() {
@@ -36,7 +37,7 @@ function stableIdempotencyKey(owner: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function toAgentWallet(wallet: { id?: string; address?: string; accountType?: string }, owner: string): AgentWallet {
+function toAgentWallet(wallet: { id?: string; address?: string; accountType?: string }, owner: string, balanceUsdc = "0"): AgentWallet {
   if (!wallet.id || !wallet.address) throw new Error("Circle returned an incomplete wallet record.");
   return {
     id: wallet.id,
@@ -44,7 +45,26 @@ function toAgentWallet(wallet: { id?: string; address?: string; accountType?: st
     owner,
     accountType: wallet.accountType ?? "EOA",
     blockchain: ARC_BLOCKCHAIN,
+    balanceUsdc,
   };
+}
+
+async function withBalance(
+  client: ReturnType<typeof initiateDeveloperControlledWalletsClient>,
+  wallet: { id?: string; address?: string; accountType?: string },
+  owner: string,
+) {
+  if (!wallet.id) return toAgentWallet(wallet, owner);
+  try {
+    const balances = await client.getWalletTokenBalance({ id: wallet.id, includeAll: true, pageSize: 50 });
+    const usdc = balances.data?.tokenBalances?.find((balance) =>
+      balance.token.symbol?.toUpperCase() === "USDC" || (balance.token.blockchain === ARC_BLOCKCHAIN && balance.token.isNative),
+    );
+    return toAgentWallet(wallet, owner, usdc?.amount ?? "0");
+  } catch {
+    // Wallet access must remain available even if Circle's indexed balance is briefly delayed.
+    return toAgentWallet(wallet, owner);
+  }
 }
 
 export async function getOrCreateAgentWallet(ownerAddress: string) {
@@ -58,7 +78,7 @@ export async function getOrCreateAgentWallet(ownerAddress: string) {
     pageSize: 10,
   });
   const wallet = existing.data?.wallets?.[0];
-  if (wallet) return { wallet: toAgentWallet(wallet, owner), created: false };
+  if (wallet) return { wallet: await withBalance(client, wallet, owner), created: false };
 
   const created = await client.createWallets({
     blockchains: [ARC_BLOCKCHAIN],
@@ -70,5 +90,5 @@ export async function getOrCreateAgentWallet(ownerAddress: string) {
   });
   const createdWallet = created.data?.wallets?.[0];
   if (!createdWallet) throw new Error("Circle did not return the new agent wallet.");
-  return { wallet: toAgentWallet(createdWallet, owner), created: true };
+  return { wallet: await withBalance(client, createdWallet, owner), created: true };
 }
