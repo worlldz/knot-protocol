@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatArcBalance, parseArcPaymentAmount, parseChainId, shortAddress } from "./arc-network";
+import {
+  formatArcBalance,
+  parseArcPaymentAmount,
+  parseChainId,
+  requestDifferentAccount,
+  shortAddress,
+  type Eip1193Provider,
+} from "./arc-network";
 
 describe("Arc wallet helpers", () => {
   it("parses Arc's hexadecimal chain id", () => {
@@ -16,5 +23,34 @@ describe("Arc wallet helpers", () => {
 
   it("shortens wallet addresses for the app shell", () => {
     expect(shortAddress("0x1234567890abcdef1234567890abcdef12345678")).toBe("0x1234...5678");
+  });
+
+  it("resets account permissions before reopening the wallet selector", async () => {
+    const methods: string[] = [];
+    const provider: Eip1193Provider = {
+      request: async ({ method }) => {
+        methods.push(method);
+        if (method === "eth_requestAccounts") return ["0x1234567890abcdef1234567890abcdef12345678"];
+        return null;
+      },
+    };
+
+    await expect(requestDifferentAccount(provider)).resolves.toBe("0x1234567890abcdef1234567890abcdef12345678");
+    expect(methods).toEqual(["wallet_revokePermissions", "eth_requestAccounts"]);
+  });
+
+  it("falls back when the wallet cannot revoke permissions", async () => {
+    const methods: string[] = [];
+    const provider: Eip1193Provider = {
+      request: async ({ method }) => {
+        methods.push(method);
+        if (method === "wallet_revokePermissions") throw Object.assign(new Error("Unsupported"), { code: -32601 });
+        if (method === "eth_requestAccounts") return ["0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"];
+        return null;
+      },
+    };
+
+    await expect(requestDifferentAccount(provider)).resolves.toBe("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd");
+    expect(methods).toEqual(["wallet_revokePermissions", "wallet_requestPermissions", "eth_requestAccounts"]);
   });
 });

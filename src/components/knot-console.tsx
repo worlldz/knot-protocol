@@ -9,6 +9,7 @@ import {
   getInjectedProvider,
   parseArcPaymentAmount,
   parseChainId,
+  requestDifferentAccount,
   shortAddress,
 } from "@/lib/arc-network";
 import type { Execution, ExecutionEvent, ProviderAttempt, VerificationCheck } from "@/lib/knot/schemas";
@@ -192,13 +193,7 @@ function useArcWallet() {
     }
     setBusy(true); setError(null); disconnected.current = false;
     try {
-      try {
-        await provider.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
-      } catch (cause) {
-        const code = typeof cause === "object" && cause !== null && "code" in cause ? Number((cause as { code: unknown }).code) : null;
-        if (code !== -32601) throw cause;
-        await provider.request({ method: "eth_requestAccounts" });
-      }
+      setAccount(await requestDifferentAccount(provider));
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The wallet account selector could not be opened.");

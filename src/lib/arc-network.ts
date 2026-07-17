@@ -24,6 +24,35 @@ export function getInjectedProvider() {
   return (window as Window & { ethereum?: Eip1193Provider }).ethereum;
 }
 
+export async function requestDifferentAccount(provider: Eip1193Provider) {
+  let permissionRevoked = false;
+
+  try {
+    await provider.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+    permissionRevoked = true;
+  } catch {
+    // Some injected wallets do not expose permission revocation.
+  }
+
+  if (!permissionRevoked) {
+    try {
+      await provider.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+    } catch (cause) {
+      const code = typeof cause === "object" && cause !== null && "code" in cause
+        ? Number((cause as { code: unknown }).code)
+        : null;
+      if (code !== -32601) throw cause;
+    }
+  }
+
+  const accountsValue = await provider.request({ method: "eth_requestAccounts" });
+  const accounts = Array.isArray(accountsValue)
+    ? accountsValue.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return accounts[0] ?? null;
+}
+
 export function parseChainId(value: unknown) {
   if (typeof value !== "string") return null;
   const parsed = Number.parseInt(value, 16);
