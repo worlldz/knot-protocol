@@ -34,6 +34,7 @@ type AgentWalletState = {
   activate: () => Promise<AgentWallet | null>;
   getAuthorization: () => { owner: string; issuedAt: string; signature: string } | null;
   fund: (target?: AgentWallet) => Promise<boolean>;
+  refresh: () => Promise<AgentWallet | null>;
 };
 
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
@@ -409,7 +410,16 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
 
   const activeWallet = agentWallet?.owner === wallet.account?.toLowerCase() ? agentWallet : null;
   const getAuthorization = useCallback(() => authorization.current, []);
-  return { wallet: activeWallet, busy, funding, error, fundHash, activate, getAuthorization, fund };
+  const refresh = useCallback(async () => {
+    if (!authorization.current) return null;
+    try {
+      return await requestAgentWallet(authorization.current);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Agent balance refresh failed.");
+      return null;
+    }
+  }, [requestAgentWallet]);
+  return { wallet: activeWallet, busy, funding, error, fundHash, activate, getAuthorization, fund, refresh };
 }
 
 function ThemeButton({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
@@ -560,7 +570,16 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
-      setExecution(data as Execution);
+      const nextExecution = data as Execution;
+      setExecution(nextExecution);
+      if (nextExecution.settlement.status === "received") {
+        const previousBalance = agent.wallet?.gatewayBalanceUsdc;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const refreshed = await agent.refresh();
+          if (!refreshed || refreshed.gatewayBalanceUsdc !== previousBalance) break;
+          await new Promise((resolve) => window.setTimeout(resolve, 700));
+        }
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Execution failed.");
     } finally {
