@@ -7,19 +7,30 @@ import { ARC_TESTNET } from "@/lib/arc-network";
 import type { Delivery } from "./schemas";
 
 type RpcBlock = { number: string; timestamp: string };
+type RpcRequest = { method: string; params?: unknown[] };
+type RpcResponse = { id?: number; result?: unknown; error?: { message?: string } };
 
-async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
-  const response = await fetch(process.env.ARC_RPC_URL ?? ARC_TESTNET.rpcUrl, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    cache: "no-store",
-  });
-  const body = await response.json() as { result?: T; error?: { message?: string } };
-  if (!response.ok || body.error || body.result === undefined) {
-    throw new Error(body.error?.message ?? `Arc RPC request failed: ${method}`);
+async function rpcBatch<T extends unknown[]>(requests: RpcRequest[]): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(process.env.ARC_RPC_URL ?? ARC_TESTNET.rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(requests.map((request, index) => ({ jsonrpc: "2.0", id: index + 1, ...request, params: request.params ?? [] }))),
+      cache: "no-store",
+    });
+    const raw = await response.json() as RpcResponse | RpcResponse[];
+    const replies = Array.isArray(raw) ? raw : [raw];
+    const failed = replies.find((reply) => reply.error || reply.result === undefined);
+    if (response.ok && !failed && replies.length === requests.length) {
+      return requests.map((_, index) => replies.find((reply) => reply.id === index + 1)?.result) as T;
+    }
+
+    const message = failed?.error?.message ?? `Arc RPC request failed with status ${response.status}.`;
+    const rateLimited = response.status === 429 || /limit|rate/i.test(message);
+    if (!rateLimited || attempt === 2) throw new Error(message);
+    await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
   }
-  return body.result;
+  throw new Error("Arc RPC request failed after retrying.");
 }
 
 function scoreWallet(balance: bigint, transactionCount: number, isContract: boolean) {
@@ -43,17 +54,26 @@ function scoreWallet(balance: bigint, transactionCount: number, isContract: bool
   return { risk, riskScore, signals, balanceUsdc };
 }
 
-export async function createArcRiskDelivery(subject: string): Promise<Delivery> {
-  if (!isAddress(subject)) throw new Error("A valid Arc address is required.");
-  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
-  if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
+type ArcWalletSnapshot = {
+  analysis: ReturnType<typeof scoreWallet>;
+  latencyMs: number;
+  ageSeconds: number;
+  observedAt: string;
+  transactionCount: number;
+  accountType: string;
+  latestBlock: number;
+};
 
+const snapshotCache = new Map<string, { expiresAt: number; value: Promise<ArcWalletSnapshot> }>();
+
+async function loadArcWallet(subject: string): Promise<ArcWalletSnapshot> {
+  if (!isAddress(subject)) throw new Error("A valid Arc address is required.");
   const startedAt = performance.now();
-  const [balanceHex, nonceHex, code, block] = await Promise.all([
-    rpc<string>("eth_getBalance", [subject, "latest"]),
-    rpc<string>("eth_getTransactionCount", [subject, "latest"]),
-    rpc<string>("eth_getCode", [subject, "latest"]),
-    rpc<RpcBlock>("eth_getBlockByNumber", ["latest", false]),
+  const [balanceHex, nonceHex, code, block] = await rpcBatch<[string, string, string, RpcBlock]>([
+    { method: "eth_getBalance", params: [subject, "latest"] },
+    { method: "eth_getTransactionCount", params: [subject, "latest"] },
+    { method: "eth_getCode", params: [subject, "latest"] },
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
   ]);
 
   const balance = BigInt(balanceHex);
@@ -63,18 +83,71 @@ export async function createArcRiskDelivery(subject: string): Promise<Delivery> 
   const ageSeconds = Math.max(0, Math.floor(Date.now() / 1000) - blockTimestamp);
   const analysis = scoreWallet(balance, transactionCount, isContract);
   const observedAt = new Date(blockTimestamp * 1000).toISOString();
-  const account = privateKeyToAccount(providerKey as Hex);
-  const payload = {
-    subject,
-    risk: analysis.risk,
-    riskScore: analysis.riskScore,
-    confidence: 0.92,
+  return {
+    analysis,
+    latencyMs: Math.max(1, Math.round(performance.now() - startedAt)),
+    ageSeconds,
     observedAt,
-    balanceUsdc: analysis.balanceUsdc,
     transactionCount,
     accountType: isContract ? "contract" : "wallet",
     latestBlock: Number(BigInt(block.number)),
-    signals: analysis.signals,
+  };
+}
+
+async function readArcWallet(subject: string) {
+  const key = subject.toLowerCase();
+  const cached = snapshotCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const value = loadArcWallet(subject).catch((cause) => {
+    snapshotCache.delete(key);
+    throw cause;
+  });
+  snapshotCache.set(key, { expiresAt: Date.now() + 4_000, value });
+  return value;
+}
+
+export async function createArcBaselineDelivery(subject: string): Promise<Delivery> {
+  const snapshot = await readArcWallet(subject);
+  const payload = {
+    subject,
+    risk: snapshot.analysis.risk,
+    observedAt: snapshot.observedAt,
+    balanceUsdc: snapshot.analysis.balanceUsdc,
+    transactionCount: snapshot.transactionCount,
+    accountType: snapshot.accountType,
+    latestBlock: snapshot.latestBlock,
+    methodology: "Arc Baseline RPC snapshot v1",
+  };
+
+  return {
+    providerId: "arc-baseline",
+    provider: "Arc Baseline",
+    priceUsdc: 0.018,
+    latencyMs: snapshot.latencyMs,
+    ageSeconds: snapshot.ageSeconds,
+    signatureValid: false,
+    payload,
+    evidenceHash: `0x${createHash("sha256").update(JSON.stringify(payload)).digest("hex")}`,
+  };
+}
+
+export async function createArcRiskDelivery(subject: string): Promise<Delivery> {
+  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
+  if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
+  const snapshot = await readArcWallet(subject);
+  const account = privateKeyToAccount(providerKey as Hex);
+  const payload = {
+    subject,
+    risk: snapshot.analysis.risk,
+    riskScore: snapshot.analysis.riskScore,
+    confidence: 0.92,
+    observedAt: snapshot.observedAt,
+    balanceUsdc: snapshot.analysis.balanceUsdc,
+    transactionCount: snapshot.transactionCount,
+    accountType: snapshot.accountType,
+    latestBlock: snapshot.latestBlock,
+    signals: snapshot.analysis.signals,
     methodology: "KNOT Arc heuristic v1",
     providerSigner: account.address,
   };
@@ -86,8 +159,8 @@ export async function createArcRiskDelivery(subject: string): Promise<Delivery> 
     providerId: "arc-sentinel",
     provider: "Arc Sentinel",
     priceUsdc: 0.024,
-    latencyMs: Math.max(1, Math.round(performance.now() - startedAt)),
-    ageSeconds,
+    latencyMs: snapshot.latencyMs,
+    ageSeconds: snapshot.ageSeconds,
     signatureValid,
     payload,
     evidenceHash,

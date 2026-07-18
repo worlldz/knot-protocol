@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAddress, verifyMessage } from "viem";
 import { z } from "zod";
 import { getOrCreateAgentWallet } from "@/lib/circle/wallets";
-import { AGENT_AUTH_WINDOW_MS, createAgentAuthorizationMessage } from "@/lib/knot/agent-auth";
+import { createAgentAuthorizationMessage, isAgentAuthorizationFresh } from "@/lib/knot/agent-auth";
 
 export const runtime = "nodejs";
 
@@ -17,9 +17,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid agent authorization." }, { status: 400 });
 
   const { owner, issuedAt, signature } = parsed.data;
-  const issuedAtMs = Date.parse(issuedAt);
-  const age = Date.now() - issuedAtMs;
-  if (age < -30_000 || age > AGENT_AUTH_WINDOW_MS) {
+  if (!isAgentAuthorizationFresh(issuedAt)) {
     return NextResponse.json({ error: "Authorization expired. Sign a fresh request." }, { status: 401 });
   }
 

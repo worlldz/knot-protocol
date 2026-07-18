@@ -88,6 +88,11 @@ export const createExecutionSchema = z.object({
   maxAgeSeconds: z.number().int().positive().max(86_400).optional(),
   requiredFields: z.array(z.string().min(1)).min(1).max(12).optional(),
   requireSignature: z.boolean().optional(),
+  agentAuthorization: z.object({
+    owner: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+    issuedAt: z.string().datetime(),
+    signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
+  }).optional(),
 });
 
 export type Obligation = z.infer<typeof obligationSchema>;

@@ -30,7 +30,7 @@ function event(
 export async function executeJob(
   input: CreateExecutionInput = {},
   providers: ServiceProvider[] = localProviders,
-  options: { origin?: string } = {},
+  options: { origin?: string; agentWallet?: { id: string; address: string } } = {},
 ): Promise<Execution> {
   const executionId = `run_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const obligation: Obligation = {
@@ -45,7 +45,15 @@ export async function executeJob(
   };
   const activeProviders = options.origin && providers === localProviders
     ? [
-        localProviders[0],
+        {
+          id: "arc-baseline",
+          name: "Arc Baseline",
+          priceUsdc: 0.018,
+          reputation: 78,
+          proofSupport: false,
+          endpoint: "/api/providers/arc-baseline/report",
+          request: async () => (await import("./arc-risk")).createArcBaselineDelivery(obligation.subject),
+        },
         {
           id: "arc-sentinel",
           name: "Arc Sentinel",
@@ -140,27 +148,37 @@ export async function executeJob(
 
     const canSettleLive = provider.id === "arc-sentinel"
       && Boolean(options.origin)
-      && Boolean(process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x"))
+      && Boolean(options.agentWallet || process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x"))
       && Boolean(process.env.X402_SELLER_ADDRESS);
 
     if (canSettleLive) {
       try {
-        const { payForResource } = await import("../x402/client");
-        const paid = await payForResource<{
-          provider: string;
-          executionId: string;
-          evidenceHash: string;
-        }>(`${options.origin}/api/providers/arc-sentinel/settle`, {
+        const { payForResource, payForResourceWithCircleAgent } = await import("../x402/client");
+        const settlementUrl = `${options.origin}/api/providers/arc-sentinel/settle`;
+        const settlementBody = {
           executionId,
           evidenceHash: delivery.evidenceHash,
           subject: obligation.subject,
-        });
+        };
+        const paid = options.agentWallet
+          ? await payForResourceWithCircleAgent<{
+              provider: string;
+              executionId: string;
+              evidenceHash: string;
+            }>(options.agentWallet, settlementUrl, settlementBody)
+          : await payForResource<{
+          provider: string;
+          executionId: string;
+          evidenceHash: string;
+        }>(settlementUrl, settlementBody);
 
         events.push(event(events.length, {
           kind: "settlement",
           status: "success",
           title: `${paid.amountUsdc} USDC accepted over x402`,
-          detail: "Gateway received the agent authorization and released the verified provider response for batched settlement.",
+          detail: options.agentWallet
+            ? "The personal Circle MPC agent signed the x402 authorization. Gateway released the verified response for batched settlement."
+            : "Gateway received the protocol agent authorization and released the verified response for batched settlement.",
           providerId: provider.id,
           amountUsdc: provider.priceUsdc,
         }));

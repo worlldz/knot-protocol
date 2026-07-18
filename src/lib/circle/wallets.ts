@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
+import type { Address, Hex } from "viem";
 
 const ARC_BLOCKCHAIN = "ARC-TESTNET";
 
@@ -91,4 +92,35 @@ export async function getOrCreateAgentWallet(ownerAddress: string) {
   const createdWallet = created.data?.wallets?.[0];
   if (!createdWallet) throw new Error("Circle did not return the new agent wallet.");
   return { wallet: await withBalance(client, createdWallet, owner), created: true };
+}
+
+export function createCircleAgentSigner(walletId: string, walletAddress: string) {
+  const client = getCircleClient();
+  return {
+    address: walletAddress as Address,
+    async signTypedData(params: {
+      domain: { name: string; version: string; chainId: number; verifyingContract: Address };
+      types: Record<string, Array<{ name: string; type: string }>>;
+      primaryType: string;
+      message: Record<string, unknown>;
+    }): Promise<Hex> {
+      const domainTypes = Object.entries(params.domain).map(([name, value]) => ({
+        name,
+        type: typeof value === "number" ? "uint256" : name === "verifyingContract" ? "address" : "string",
+      }));
+      const response = await client.signTypedData({
+        walletId,
+        memo: "KNOT verified x402 settlement",
+        data: JSON.stringify({
+          domain: params.domain,
+          types: { EIP712Domain: domainTypes, ...params.types },
+          primaryType: params.primaryType,
+          message: params.message,
+        }, (_key, value) => typeof value === "bigint" ? value.toString() : value),
+      });
+      const signature = response.data?.signature;
+      if (!signature?.startsWith("0x")) throw new Error("Circle did not return an x402 signature.");
+      return signature as Hex;
+    },
+  };
 }
