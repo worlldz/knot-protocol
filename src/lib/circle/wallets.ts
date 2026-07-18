@@ -1,8 +1,21 @@
 import crypto from "node:crypto";
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
-import type { Address, Hex } from "viem";
+import { createEIP1193Provider } from "@circle-fin/developer-controlled-wallets/evm";
+import { encodeFunctionData, erc20Abi, formatUnits, parseUnits, type Address, type Hex } from "viem";
 
 const ARC_BLOCKCHAIN = "ARC-TESTNET";
+const ARC_CHAIN_ID = 5_042_002;
+const ARC_USDC = "0x3600000000000000000000000000000000000000" as Address;
+const GATEWAY_WALLET = "0x0077777d7eba4688bdef3e311b846f25870a19b9" as Address;
+const GATEWAY_DOMAIN = 26;
+const GATEWAY_DEPOSIT_USDC = "0.5";
+const gatewayWalletAbi = [{
+  type: "function",
+  name: "deposit",
+  stateMutability: "nonpayable",
+  inputs: [{ name: "token", type: "address" }, { name: "value", type: "uint256" }],
+  outputs: [],
+}] as const;
 
 export type AgentWallet = {
   id: string;
@@ -11,6 +24,7 @@ export type AgentWallet = {
   accountType: string;
   blockchain: typeof ARC_BLOCKCHAIN;
   balanceUsdc: string;
+  gatewayBalanceUsdc: string;
 };
 
 function getCircleClient() {
@@ -38,7 +52,12 @@ function stableIdempotencyKey(owner: string) {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-function toAgentWallet(wallet: { id?: string; address?: string; accountType?: string }, owner: string, balanceUsdc = "0"): AgentWallet {
+function toAgentWallet(
+  wallet: { id?: string; address?: string; accountType?: string },
+  owner: string,
+  balanceUsdc = "0",
+  gatewayBalanceUsdc = "0",
+): AgentWallet {
   if (!wallet.id || !wallet.address) throw new Error("Circle returned an incomplete wallet record.");
   return {
     id: wallet.id,
@@ -47,7 +66,20 @@ function toAgentWallet(wallet: { id?: string; address?: string; accountType?: st
     accountType: wallet.accountType ?? "EOA",
     blockchain: ARC_BLOCKCHAIN,
     balanceUsdc,
+    gatewayBalanceUsdc,
   };
+}
+
+export async function getCircleGatewayBalance(address: string) {
+  const response = await fetch("https://gateway-api-testnet.circle.com/v1/balances", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: "USDC", sources: [{ depositor: address, domain: GATEWAY_DOMAIN }] }),
+    cache: "no-store",
+  });
+  const data = await response.json() as { balances?: Array<{ balance?: string }>; message?: string };
+  if (!response.ok) throw new Error(data.message ?? "Circle Gateway balance lookup failed.");
+  return data.balances?.[0]?.balance ?? "0";
 }
 
 async function withBalance(
@@ -61,11 +93,58 @@ async function withBalance(
     const usdc = balances.data?.tokenBalances?.find((balance) =>
       balance.token.symbol?.toUpperCase() === "USDC" || (balance.token.blockchain === ARC_BLOCKCHAIN && balance.token.isNative),
     );
-    return toAgentWallet(wallet, owner, usdc?.amount ?? "0");
+    const gatewayBalance = await getCircleGatewayBalance(wallet.address ?? "").catch(() => "0");
+    return toAgentWallet(wallet, owner, usdc?.amount ?? "0", gatewayBalance);
   } catch {
     // Wallet access must remain available even if Circle's indexed balance is briefly delayed.
     return toAgentWallet(wallet, owner);
   }
+}
+
+export async function ensureCircleAgentGatewayBalance(
+  walletId: string,
+  walletAddress: string,
+  minimumAtomic: bigint,
+) {
+  const current = parseUnits(await getCircleGatewayBalance(walletAddress), 6);
+  if (current >= minimumAtomic) return formatUnits(current, 6);
+
+  const client = getCircleClient();
+  const balances = await client.getWalletTokenBalance({ id: walletId, includeAll: true, pageSize: 50 });
+  const walletUsdc = balances.data?.tokenBalances?.find((balance) =>
+    balance.token.symbol?.toUpperCase() === "USDC" || (balance.token.blockchain === ARC_BLOCKCHAIN && balance.token.isNative),
+  );
+  const depositAmount = parseUnits(GATEWAY_DEPOSIT_USDC, 6);
+  if (parseUnits(walletUsdc?.amount ?? "0", 6) < depositAmount) {
+    throw new Error(`Agent needs ${GATEWAY_DEPOSIT_USDC} USDC in its wallet before Gateway can be funded.`);
+  }
+
+  const apiKey = process.env.CIRCLE_API_KEY;
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET;
+  if (!apiKey || !entitySecret) throw new Error("Circle developer wallet credentials are not configured.");
+  const provider = createEIP1193Provider({ apiKey, entitySecret, chain: ARC_CHAIN_ID, txPollingTimeout: 60_000 });
+  const send = (to: Address, data: Hex) => provider.request({
+    method: "eth_sendTransaction",
+    params: [{ from: walletAddress, to, data }],
+  });
+
+  await send(ARC_USDC, encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [GATEWAY_WALLET, depositAmount],
+  }));
+  await send(GATEWAY_WALLET, encodeFunctionData({
+    abi: gatewayWalletAbi,
+    functionName: "deposit",
+    args: [ARC_USDC, depositAmount],
+  }));
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const available = parseUnits(await getCircleGatewayBalance(walletAddress), 6);
+    if (available >= minimumAtomic) return formatUnits(available, 6);
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+  }
+  throw new Error("Gateway deposit is still confirming. Retry the assessment in a few seconds.");
 }
 
 export async function getOrCreateAgentWallet(ownerAddress: string) {

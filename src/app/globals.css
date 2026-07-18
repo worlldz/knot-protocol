@@ -231,7 +231,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 .trace-empty .knot-mark { background: rgba(255,255,255,.08); }
 .trace-empty p { margin: 7px 0 0; color: #d8e5dd; font-size: 17px; }
 .trace-empty > span:last-child { font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
-.trace-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; scroll-padding-block-end: 28px; margin: 0; padding: 24px 30px 36px; list-style: none; scrollbar-color: rgba(255,255,255,.24) transparent; scrollbar-width: thin; }
+.trace-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; scroll-padding-block-end: 28px; scrollbar-gutter: stable; margin: 0; padding: 24px 30px 36px; list-style: none; scrollbar-color: var(--acid) rgba(255,255,255,.07); scrollbar-width: auto; }
+.trace-list::-webkit-scrollbar { width: 9px; }.trace-list::-webkit-scrollbar-track { background: rgba(255,255,255,.06); }.trace-list::-webkit-scrollbar-thumb { border: 2px solid #0a1510; border-radius: 999px; background: var(--acid); }
 .trace-event { display: grid; grid-template-columns: 23px 1fr; gap: 13px; min-height: 94px; }
 .trace-rail { position: relative; display: flex; justify-content: center; }
 .trace-rail > i { position: absolute; top: 17px; bottom: -1px; width: 1px; background: rgba(255,255,255,.14); }
@@ -306,6 +307,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 .settlement-panel.is-authorized .settlement-heading b { color: var(--mint); border-color: rgba(92,240,187,.25); }
 .settlement-amount { position: relative; margin: 62px 0 47px; font-family: "Bahnschrift", sans-serif; font-size: clamp(4rem, 7vw, 6.5rem); line-height: .8; letter-spacing: -.06em; }
 .settlement-amount span { margin-left: 12px; color: #8d9f96; font-size: 12px; letter-spacing: .08em; }
+.settlement-amount.is-blocked { color: var(--red); font-size: clamp(2.7rem, 5vw, 4.8rem); letter-spacing: -.04em; }
+.settlement-panel.is-blocked .settlement-heading b { border-color: rgba(255,128,108,.3); color: var(--red); }
 .settlement-data { position: relative; display: grid; gap: 1px; overflow: hidden; margin: 0; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(255,255,255,.1); }
 .settlement-data div { display: grid; grid-template-columns: 100px 1fr; padding: 12px 14px; background: rgba(255,255,255,.035); }
 .settlement-data dt { color: #9aaca2; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

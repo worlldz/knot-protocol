@@ -24,6 +24,7 @@ x402 makes machine payments easy, but payment success does not prove service qua
 - Personal Circle developer-controlled agent wallet provisioned per connected owner
 - Five-minute wallet-signed authorization window; Circle wallet IDs are resolved server-side
 - Agent funding from the connected Arc wallet with no private key exposed to the browser
+- Automatic Circle MPC approval and one-time Gateway deposit before agent nanopayments
 - One-click Arc Testnet add/switch flow using the official network configuration
 - Direct native USDC payment surface with Arcscan transaction links
 - Curated Arc and Circle resource guide using the official Arc brand mark
@@ -90,7 +91,7 @@ curl -X POST http://localhost:3000/api/executions \
 
 Copy the variable names from `.env.example` into `.env.local`. Never commit private keys or Circle credentials.
 
-The Arc Sentinel settlement endpoint becomes payment-protected when `X402_SELLER_ADDRESS` is set. Interactive runs use a funded personal Circle agent configured by `CIRCLE_API_KEY`, `CIRCLE_ENTITY_SECRET`, and `CIRCLE_WALLET_SET_ID`. `X402_BUYER_PRIVATE_KEY` is an optional protocol-funded fallback for direct API calls and CI. Contract deployment requires an Arc Testnet deployer and the target ERC-8183 commerce protocol address.
+The Arc Sentinel settlement endpoint becomes payment-protected when `X402_SELLER_ADDRESS` is set. Interactive runs use a funded personal Circle agent configured by `CIRCLE_API_KEY`, `CIRCLE_ENTITY_SECRET`, and `CIRCLE_WALLET_SET_ID`. When its Gateway balance is low, the MPC agent approves and deposits USDC into Gateway itself; later x402 calls use gasless offchain authorizations without another browser-wallet approval. `X402_BUYER_PRIVATE_KEY` is an optional protocol-funded fallback for direct API calls and CI. Contract deployment requires an Arc Testnet deployer and the target ERC-8183 commerce protocol address.
 
 ```bash
 npm run deploy:arc

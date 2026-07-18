@@ -24,7 +24,7 @@ type View = "console" | "payment" | "explore";
 type Theme = "light" | "dark";
 type PolicyPreset = "economy" | "balanced" | "strict" | "custom";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
-type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string };
+type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string; gatewayBalanceUsdc: string };
 type AgentWalletState = {
   wallet: AgentWallet | null;
   busy: boolean;
@@ -188,24 +188,32 @@ function useArcWallet() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const disconnected = useRef(false);
+  const refreshing = useRef(false);
 
   const refresh = useCallback(async () => {
     const provider = getInjectedProvider();
-    if (!provider) return;
-    const [accountsValue, chainValue] = await Promise.all([
-      provider.request({ method: "eth_accounts" }),
-      provider.request({ method: "eth_chainId" }),
-    ]);
-    const accounts = Array.isArray(accountsValue) ? accountsValue.filter((item): item is string => typeof item === "string") : [];
-    const nextAccount = disconnected.current ? null : accounts[0] ?? null;
-    const nextChain = parseChainId(chainValue);
-    setAccount(nextAccount);
-    setChainId(nextChain);
-    if (nextAccount && nextChain === ARC_TESTNET.id) {
-      const rawBalance = await provider.request({ method: "eth_getBalance", params: [nextAccount, "latest"] });
-      setBalance(formatArcBalance(rawBalance));
-    } else {
-      setBalance("0.00");
+    if (!provider || refreshing.current) return;
+    refreshing.current = true;
+    try {
+      const [accountsValue, chainValue] = await Promise.all([
+        provider.request({ method: "eth_accounts" }),
+        provider.request({ method: "eth_chainId" }),
+      ]);
+      const accounts = Array.isArray(accountsValue) ? accountsValue.filter((item): item is string => typeof item === "string") : [];
+      const nextAccount = disconnected.current ? null : accounts[0] ?? null;
+      const nextChain = parseChainId(chainValue);
+      setAccount(nextAccount);
+      setChainId(nextChain);
+      if (nextAccount && nextChain === ARC_TESTNET.id) {
+        const rawBalance = await provider.request({ method: "eth_getBalance", params: [nextAccount, "latest"] });
+        setBalance(formatArcBalance(rawBalance));
+      } else {
+        setBalance("0.00");
+      }
+    } catch {
+      // Keep the last known wallet state when the public Arc RPC briefly rate-limits reads.
+    } finally {
+      refreshing.current = false;
     }
   }, []);
 
@@ -373,13 +381,21 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
     setError(null); setFundHash(null); setFunding(true);
     try {
       if (wallet.chainId !== ARC_TESTNET.id && !(await wallet.addOrSwitchArc())) return false;
+      const balanceBefore = BigInt(await provider.request({ method: "eth_getBalance", params: [walletToFund.address, "latest"] }) as string);
       const hash = await provider.request({
         method: "eth_sendTransaction",
-        params: [{ from: wallet.account, to: walletToFund.address, value: parseArcPaymentAmount("0.10") }],
+        params: [{ from: wallet.account, to: walletToFund.address, value: parseArcPaymentAmount("0.60") }],
       });
       if (typeof hash !== "string") throw new Error("The wallet did not return a funding transaction hash.");
       setFundHash(hash);
-      await new Promise((resolve) => window.setTimeout(resolve, 2_500));
+      const expectedBalance = balanceBefore + BigInt(parseArcPaymentAmount("0.60"));
+      let confirmed = false;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const current = await provider.request({ method: "eth_getBalance", params: [walletToFund.address, "latest"] });
+        if (typeof current === "string" && BigInt(current) >= expectedBalance) { confirmed = true; break; }
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+      }
+      if (!confirmed) throw new Error("Agent funding is still confirming. Retry in a few seconds.");
       if (authorization.current) await requestAgentWallet(authorization.current);
       await wallet.refresh();
       return true;
@@ -449,7 +465,7 @@ function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof us
       <div className="ribbon-intro"><span>{agent.wallet ? "Personal agent online" : "Live environment"}</span><p>{agent.wallet ? `Circle MPC wallet ${shortAddress(agent.wallet.address)} is bound to this connected account.` : "Connect once, authorize your agent, and keep its signing key isolated from the browser."}</p></div>
       <div className="ribbon-metric"><i className="metric-glyph">A</i><span><small>Network</small><b>{correctChain ? "Arc Testnet connected" : "Arc Testnet"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">$</i><span><small>Money</small><b>{wallet.account && correctChain ? `${wallet.balance} USDC` : "Native USDC"}</b></span></div>
-      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>{agent.wallet ? "Agent balance" : "Rail"}</small><b>{agent.wallet ? `${Number(agent.wallet.balanceUsdc).toFixed(3)} USDC` : system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
+      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>{agent.wallet ? "Gateway balance" : "Rail"}</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
       <button type="button" className={`ribbon-action ${agent.wallet ? "is-agent-ready" : ""}`} onClick={() => void action()} disabled={wallet.busy || agent.busy || agent.funding}>{actionLabel}<ArrowIcon /></button>
     </section>
   );
@@ -467,6 +483,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const traceListRef = useRef<HTMLOListElement>(null);
+  const tracePanelRef = useRef<HTMLElement>(null);
   const subjectAddress = subject || wallet.account || "";
 
   useEffect(() => {
@@ -476,9 +493,15 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   }, [execution, visibleEvents]);
 
   useEffect(() => {
-    if (visibleEvents < 5 || !traceListRef.current) return;
+    if (visibleEvents < 1) return;
     const frame = window.requestAnimationFrame(() => {
-      traceListRef.current?.scrollTo({ top: traceListRef.current.scrollHeight, behavior: "smooth" });
+      if (visibleEvents >= 5) {
+        traceListRef.current?.scrollTo({ top: traceListRef.current.scrollHeight, behavior: "smooth" });
+      }
+      if (visibleEvents === 1 || visibleEvents >= 5) {
+        const panelTop = tracePanelRef.current?.getBoundingClientRect().top;
+        if (panelTop !== undefined) window.scrollTo({ top: window.scrollY + panelTop - 94, behavior: "smooth" });
+      }
     });
     return () => window.cancelAnimationFrame(frame);
   }, [visibleEvents]);
@@ -487,6 +510,8 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const visibleTrace = execution?.events.slice(0, visibleEvents) ?? [];
   const completed = Boolean(execution && visibleEvents >= execution.events.length);
   const checks = acceptedAttempt?.verification.checks;
+  const settlementEvent = execution?.events.findLast((item) => item.kind === "settlement");
+  const settlementBlocked = execution?.settlement.status === "blocked";
   const busy = running || agent.busy || agent.funding || Boolean(execution && !completed);
 
   function applyPolicy(preset: Exclude<PolicyPreset, "custom">) {
@@ -510,7 +535,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
     }
     if (!activatedAgent) return;
     if (!agentAuthorization) return setError("Agent authorization is missing. Sign the request again.");
-    if (Number(activatedAgent.balanceUsdc) < 0.024) {
+    if (Number(activatedAgent.gatewayBalanceUsdc) < 0.024 && Number(activatedAgent.balanceUsdc) < 0.5) {
       const funded = await agent.fund(activatedAgent);
       if (!funded) return;
     }
@@ -571,7 +596,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           {(error || agent.error) && <p className="error-message" role="alert">{error ?? agent.error}</p>}
         </article>
 
-        <article className="trace-panel">
+        <article className="trace-panel" ref={tracePanelRef}>
           <div className="trace-header"><div><span>Agent execution</span><h2>Clearing trace</h2></div><div className="trace-head-actions">{busy && <div className="trace-hourglass"><HourglassIcon /><span>VERIFYING</span></div>}<div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>Events</span></div></div></div>
           {visibleTrace.length === 0 ? <div className="trace-empty"><KnotMark /><p>The clearing engine is standing by.</p><span>Run the obligation to inspect every decision</span></div> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
           <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
@@ -600,12 +625,12 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             <div className="section-heading compact"><div><span>Evidence envelope</span><h2>Verification matrix</h2></div><span className={`proof-score ${completed ? "ready" : ""}`}>{completed ? `${checks?.filter((check) => check.passed).length ?? 0} / 5 PASS` : "WAITING"}</span></div>
             <div className="proof-list">{proofLabels.map((label, index) => <ProofRow key={label} label={label} check={checks?.[index]} />)}</div>
           </article>
-          <article className={`settlement-panel ${completed ? "is-authorized" : ""}`}>
+          <article className={`settlement-panel ${completed && !settlementBlocked ? "is-authorized" : "is-blocked"}`}>
             <div className="settlement-orbit" aria-hidden="true"><i /><i /><i /></div>
-            <div className="settlement-heading"><span>Settlement result</span><b>{completed ? execution?.settlement.status === "received" ? "X402 RECEIVED" : "AUTHORIZED" : "LOCKED"}</b></div>
-            <p className="settlement-amount">{completed ? execution?.settlement.amountUsdc.toFixed(3) : "0.000"}<span>USDC</span></p>
+            <div className="settlement-heading"><span>Settlement result</span><b>{settlementBlocked ? "BLOCKED" : completed ? execution?.settlement.status === "received" ? "X402 RECEIVED" : "AUTHORIZED" : "LOCKED"}</b></div>
+            <p className={`settlement-amount ${settlementBlocked ? "is-blocked" : ""}`}>{settlementBlocked ? "BLOCKED" : completed ? execution?.settlement.amountUsdc.toFixed(3) : "0.000"}{!settlementBlocked && <span>USDC</span>}</p>
             <dl className="settlement-data"><div><dt>Rail</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>Evidence</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>{execution?.settlement.rail === "x402-gateway" ? "Gateway transfer" : "Onchain tx"}</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div></dl>
-            <p className="settlement-disclaimer">{completed ? execution?.settlement.status === "received" ? "Circle Gateway accepted the x402 transfer. Provider credit finalizes through batched settlement." : "The evidence is accepted. The commitment is ready for the KNOT ERC-8183 completion hook." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
+            <p className="settlement-disclaimer">{settlementBlocked ? settlementEvent?.detail ?? "Circle Gateway did not accept the payment authorization." : completed ? execution?.settlement.status === "received" ? "Circle Gateway accepted the x402 transfer. Provider credit finalizes through batched settlement." : "The evidence is accepted. The commitment is ready for the KNOT ERC-8183 completion hook." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
           </article>
         </div>
       </section>}

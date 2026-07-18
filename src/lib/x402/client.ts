@@ -2,7 +2,7 @@ import "server-only";
 
 import { BatchEvmScheme, GatewayClient } from "@circle-fin/x402-batching/client";
 import { formatUnits, isHex, type Hex } from "viem";
-import { createCircleAgentSigner } from "@/lib/circle/wallets";
+import { createCircleAgentSigner, ensureCircleAgentGatewayBalance } from "@/lib/circle/wallets";
 
 export type PaidResource<T> = {
   data: T;
@@ -76,6 +76,8 @@ export async function payForResourceWithCircleAgent<T>(
     && typeof candidate.extra?.verifyingContract === "string",
   );
   if (!option) throw new Error("The provider does not expose an Arc Gateway batching option.");
+
+  await ensureCircleAgentGatewayBalance(wallet.id, wallet.address, BigInt(option.amount));
 
   const signer = createCircleAgentSigner(wallet.id, wallet.address);
   const scheme = new BatchEvmScheme(signer);
