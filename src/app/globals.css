@@ -157,7 +157,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 .packet-one { animation: packet-intent 3.8s ease-in-out infinite; }.packet-two { animation: packet-market 3.8s 1.25s ease-in-out infinite; }.packet-three { animation: packet-settle 3.8s 2.5s ease-in-out infinite; }
 
 /* Network ribbon */
-.network-ribbon { display: grid; grid-template-columns: minmax(250px, 1fr) repeat(3, minmax(145px, .52fr)) auto; align-items: stretch; overflow: hidden; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); box-shadow: 0 22px 60px var(--shadow); }
+.network-ribbon { display: grid; grid-template-columns: minmax(240px, 1fr) repeat(4, minmax(125px, .46fr)) auto; align-items: stretch; overflow: hidden; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--panel); box-shadow: 0 22px 60px var(--shadow); }
 .network-ribbon > * { min-height: 88px; border-right: 1px solid var(--line); }
 .network-ribbon > *:last-child { border-right: 0; }
 .ribbon-intro { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 17px 22px; }
@@ -215,11 +215,6 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 .run-button svg, .payment-button svg { width: 20px; }
 .run-button:hover:not(:disabled), .payment-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 46px color-mix(in srgb, var(--acid) 23%, transparent); }
 .run-button:disabled, .payment-button:disabled { cursor: not-allowed; opacity: .55; box-shadow: none; }
-.signing-expectation { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; border: 1px solid var(--line); border-radius: 13px; background: color-mix(in srgb, var(--mint) 6%, var(--panel-solid)); padding: 11px 12px; }
-.signing-expectation > svg { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: var(--mint); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.signing-expectation > p { display: flex; flex-direction: column; gap: 3px; margin: 0; }
-.signing-expectation strong { color: var(--ink); font-size: 12px; }
-.signing-expectation small { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .execution-source { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 13px; border: 0; border-radius: 0; background: transparent; padding: 0 2px; }
 .execution-source > span { display: flex; align-items: center; gap: 8px; color: var(--blue); font-size: 11px; font-weight: 850; letter-spacing: .07em; }.execution-source > span i { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 13px var(--blue); }.execution-source p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; text-align: right; }
 .mode-note { display: flex; gap: 15px; margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--line); }
@@ -465,9 +460,9 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
   .hero-grid, .view-hero { grid-template-columns: 1fr; }
   .hero-aside, .view-hero > p { max-width: 720px; justify-self: start; }
   .hero-trust-card { max-width: 760px; min-height: 540px; }
-  .network-ribbon { grid-template-columns: 1fr repeat(3, 1fr); }
+  .network-ribbon { grid-template-columns: repeat(2, 1fr); }
   .ribbon-intro { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
-  .ribbon-action { min-width: 0; }
+  .ribbon-action { min-width: 0; min-height: 70px; grid-column: 1 / -1; }
   .workspace { grid-template-columns: 1fr; }
   .trace-panel { height: 650px; min-height: 650px; max-height: 650px; }
   .execution-receipt { grid-template-columns: auto 1fr auto; }

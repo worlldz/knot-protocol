@@ -468,15 +468,15 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
 
 function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const correctChain = wallet.chainId === ARC_TESTNET.id;
-  const gatewayReady = Number(agent.wallet?.gatewayBalanceUsdc ?? 0) >= 0.024;
-  const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : agent.wallet ? gatewayReady ? () => agent.activate() : () => agent.fund() : () => agent.activate();
-  const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? gatewayReady ? agent.busy ? "Authorizing" : "Reauthorize" : agent.funding ? "Funding agent" : "Fund agent" : agent.busy ? "Preparing agent" : "Activate agent";
+  const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : agent.wallet ? () => agent.fund() : () => agent.activate();
+  const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? agent.funding ? "Adding funds" : "Top up agent" : agent.busy ? "Preparing agent" : "Activate agent";
   return (
     <section className="network-ribbon page-shell" aria-label="Network and payment rail status">
       <div className="ribbon-intro"><span>{agent.wallet ? "Personal agent online" : "Live environment"}</span><p>{agent.wallet ? `Circle MPC wallet ${shortAddress(agent.wallet.address)} is bound to this connected account.` : "Connect once, authorize your agent, and keep its signing key isolated from the browser."}</p></div>
       <div className="ribbon-metric"><i className="metric-glyph">A</i><span><small>Network</small><b>{correctChain ? "Arc Testnet connected" : "Arc Testnet"}</b></span></div>
-      <div className="ribbon-metric"><i className="metric-glyph">$</i><span><small>Money</small><b>{wallet.account && correctChain ? `${wallet.balance} USDC` : "Native USDC"}</b></span></div>
-      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>{agent.wallet ? "Gateway balance" : "Rail"}</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
+      <div className="ribbon-metric"><i className="metric-glyph">$</i><span><small>Connected wallet</small><b>{wallet.account && correctChain ? `${wallet.balance} USDC` : "Native USDC"}</b></span></div>
+      <div className="ribbon-metric"><i className="metric-glyph">M</i><span><small>Agent wallet</small><b>{agent.wallet ? `${Number(agent.wallet.balanceUsdc).toFixed(3)} USDC` : "Not activated"}</b></span></div>
+      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>Gateway balance</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
       <button type="button" className={`ribbon-action ${agent.wallet ? "is-agent-ready" : ""}`} onClick={() => void action()} disabled={wallet.busy || agent.busy || agent.funding}>{actionLabel}<ArrowIcon /></button>
     </section>
   );
@@ -621,7 +621,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
           </div>
           <button className="run-button" type="button" onClick={runAgent} disabled={busy}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : "Assess wallet"}</span><ArrowIcon /></button>
-          <div className="signing-expectation"><SignalIcon kind={agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "settle" : "intent"} /><p><strong>{agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "No MetaMask popup is expected for this run." : "The first funded run will ask for wallet authorization."}</strong><span>{agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "Your authorized Circle MPC agent signs the x402 payment from its Gateway balance." : "KNOT never takes your browser wallet key; the personal agent receives limited signing authority."}</span></p></div>
           {(error || agent.error) && <p className="error-message" role="alert">{error ?? agent.error}</p>}
         </article>
 
