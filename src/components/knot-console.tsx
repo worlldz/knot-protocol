@@ -44,12 +44,12 @@ const policyPresets = {
 } as const;
 
 const resources = [
-  { number: "01", label: "Arc network", title: "The stablecoin-native L1", copy: "Learn how Arc makes programmable money feel immediate, predictable, and EVM-native.", href: "https://www.arc.io/", tone: "lime" },
-  { number: "02", label: "Developer docs", title: "Build on Arc", copy: "Network configuration, contracts, App Kit, agent patterns, and production integration guides.", href: "https://docs.arc.io/", tone: "mint" },
-  { number: "03", label: "Block explorer", title: "Inspect Arc Testnet", copy: "Follow blocks, transactions, verified contracts, fees, and activity directly on Arcscan.", href: "https://testnet.arcscan.app/", tone: "blue" },
-  { number: "04", label: "Agentic economy", title: "Agents as economic actors", copy: "Explore Arc's ERC-8004 identity and ERC-8183 job settlement foundations.", href: "https://docs.arc.io/build/agentic-economy", tone: "orange" },
-  { number: "05", label: "Circle Gateway", title: "Understand x402", copy: "See how HTTP-native payment negotiation and batched nanopayments serve machine commerce.", href: "https://developers.circle.com/gateway/nanopayments/concepts/x402", tone: "violet" },
-  { number: "06", label: "Testnet funds", title: "Open the faucet", copy: "Fund a wallet with test USDC and start sending, settling, and deploying on Arc.", href: "https://faucet.circle.com/", tone: "rose" },
+  { number: "01", icon: "SETTLE", label: "Arc network", title: "The stablecoin-native L1", copy: "Learn how Arc makes programmable money feel immediate, predictable, and EVM-native.", href: "https://www.arc.io/", tone: "lime" },
+  { number: "02", icon: "INTENT", label: "Developer docs", title: "Build on Arc", copy: "Network configuration, contracts, App Kit, agent patterns, and production integration guides.", href: "https://docs.arc.io/", tone: "mint" },
+  { number: "03", icon: "EVIDENCE", label: "Block explorer", title: "Inspect Arc Testnet", copy: "Follow blocks, transactions, verified contracts, fees, and activity directly on Arcscan.", href: "https://testnet.arcscan.app/", tone: "blue" },
+  { number: "04", icon: "MARKET", label: "Agentic economy", title: "Agents as economic actors", copy: "Explore Arc's ERC-8004 identity and ERC-8183 job settlement foundations.", href: "https://docs.arc.io/build/agentic-economy", tone: "orange" },
+  { number: "05", icon: "SETTLE", label: "Circle Gateway", title: "Understand x402", copy: "See how HTTP-native payment negotiation and batched nanopayments serve machine commerce.", href: "https://developers.circle.com/gateway/nanopayments/concepts/x402", tone: "violet" },
+  { number: "06", icon: "INTENT", label: "Testnet funds", title: "Open the faucet", copy: "Fund a wallet with test USDC and start sending, settling, and deploying on Arc.", href: "https://faucet.circle.com/", tone: "rose" },
 ] as const;
 
 function KnotMark() {
@@ -706,9 +706,9 @@ function PaymentView({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
       </div>
 
       <div className="payment-principles">
-        <article><span>01</span><h3>Stable by default</h3><p>Amounts, balances, and fees stay denominated in USDC.</p></article>
-        <article><span>02</span><h3>Deterministic finality</h3><p>One committed Arc block is final, with no reorg waiting window.</p></article>
-        <article><span>03</span><h3>Standard wallet flow</h3><p>Arc remains EVM-compatible, so familiar wallet signing still applies.</p></article>
+        <article><i><SignalIcon kind="settle" /></i><span>01</span><h3>Stable by default</h3><p>Amounts, balances, and fees stay denominated in USDC.</p></article>
+        <article><i><SignalIcon kind="verify" /></i><span>02</span><h3>Deterministic finality</h3><p>One committed Arc block is final, with no reorg waiting window.</p></article>
+        <article><i><SignalIcon kind="intent" /></i><span>03</span><h3>Standard wallet flow</h3><p>Arc remains EVM-compatible, so familiar wallet signing still applies.</p></article>
       </div>
     </section>
   );
@@ -730,14 +730,14 @@ function ExploreView() {
     <section className="view-page explore-page page-shell">
       <div className="view-hero explore-hero">
         <div><span className="eyebrow">ECOSYSTEM FIELD GUIDE</span><h1><span>Understand the rail.</span><em>Then build beyond it.</em></h1></div>
-        <div className="explore-aside"><p>A focused map of the Arc and Circle resources behind KNOT: the network, stablecoin settlement, agent standards, and x402 machine payments.</p><dl><div><dt>Native value</dt><dd>USDC</dd></div><div><dt>Finality</dt><dd>Sub-second</dd></div><div><dt>Machine rail</dt><dd>x402</dd></div></dl></div>
+        <div className="explore-aside"><div className="explore-live-rail" aria-hidden="true"><span><SignalIcon kind="intent" /></span><i /><span><SignalIcon kind="market" /></span><i /><span><SignalIcon kind="verify" /></span><i /><span><SignalIcon kind="settle" /></span><b /></div><p>A focused map of the Arc and Circle resources behind KNOT: the network, stablecoin settlement, agent standards, and x402 machine payments.</p><dl><div><dt>Native value</dt><dd>USDC</dd></div><div><dt>Finality</dt><dd>Sub-second</dd></div><div><dt>Machine rail</dt><dd>x402</dd></div></dl></div>
       </div>
 
       <BuildOnArcBand />
 
       <div className="resource-heading"><div><span>Curated resources</span><h2>Explore the stack</h2></div><p>Official references only. Every link opens the source used to shape KNOT&apos;s architecture.</p></div>
       <div className="resource-grid">
-        {resources.map((resource) => <a className={`resource-card tone-${resource.tone}`} href={resource.href} target="_blank" rel="noreferrer" key={resource.number}><div><span>{resource.number}</span><small>{resource.label}</small><ExternalIcon /></div><h3>{resource.title}</h3><p>{resource.copy}</p><b>Open resource <ArrowIcon /></b></a>)}
+        {resources.map((resource) => <a className={`resource-card tone-${resource.tone}`} href={resource.href} target="_blank" rel="noreferrer" key={resource.number}><div><span>{resource.number}</span><small>{resource.label}</small><ExternalIcon /></div><i className="resource-symbol"><ProtocolIcon kind={resource.icon} /></i><h3>{resource.title}</h3><p>{resource.copy}</p><b>Open resource <ArrowIcon /></b></a>)}
       </div>
 
       <section className="stack-story">
