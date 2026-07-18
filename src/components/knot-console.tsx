@@ -12,7 +12,7 @@ import {
   requestDifferentAccount,
   shortAddress,
 } from "@/lib/arc-network";
-import { AGENT_AUTH_WINDOW_MS, createAgentAuthorizationMessage } from "@/lib/knot/agent-auth";
+import { createAgentAuthorizationMessage, isAgentAuthorizationFresh } from "@/lib/knot/agent-auth";
 import type { Execution, ExecutionEvent, ProviderAttempt, VerificationCheck } from "@/lib/knot/schemas";
 
 type SystemStatus = {
@@ -458,8 +458,9 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
 
 function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const correctChain = wallet.chainId === ARC_TESTNET.id;
-  const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : agent.wallet ? () => agent.fund() : () => agent.activate();
-  const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? agent.funding ? "Funding agent" : "Fund agent" : agent.busy ? "Preparing agent" : "Activate agent";
+  const gatewayReady = Number(agent.wallet?.gatewayBalanceUsdc ?? 0) >= 0.024;
+  const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : agent.wallet ? gatewayReady ? () => agent.activate() : () => agent.fund() : () => agent.activate();
+  const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? gatewayReady ? agent.busy ? "Authorizing" : "Reauthorize" : agent.funding ? "Funding agent" : "Fund agent" : agent.busy ? "Preparing agent" : "Activate agent";
   return (
     <section className="network-ribbon page-shell" aria-label="Network and payment rail status">
       <div className="ribbon-intro"><span>{agent.wallet ? "Personal agent online" : "Live environment"}</span><p>{agent.wallet ? `Circle MPC wallet ${shortAddress(agent.wallet.address)} is bound to this connected account.` : "Connect once, authorize your agent, and keep its signing key isolated from the browser."}</p></div>
@@ -473,6 +474,7 @@ function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof us
 
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [subject, setSubject] = useState("");
+  const [instruction, setInstruction] = useState("Assess whether this wallet is suitable for a USDC payment using current Arc activity.");
   const [maxPrice, setMaxPrice] = useState("0.030");
   const [maxAge, setMaxAge] = useState(90);
   const [maxLatency, setMaxLatency] = useState(1_400);
@@ -484,7 +486,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const [error, setError] = useState<string | null>(null);
   const traceListRef = useRef<HTMLOListElement>(null);
   const tracePanelRef = useRef<HTMLElement>(null);
-  const subjectAddress = subject || wallet.account || "";
+  const subjectAddress = (subject || wallet.account || "").trim();
 
   useEffect(() => {
     if (!execution || visibleEvents >= execution.events.length) return;
@@ -526,10 +528,10 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   async function runAgent() {
     setError(null);
     if (!isAddress(subjectAddress)) return setError("Enter a valid Arc wallet address to assess.");
+    if (instruction.trim().length < 12) return setError("Tell the agent what decision this assessment should support.");
     let activatedAgent = agent.wallet;
     let agentAuthorization = agent.getAuthorization();
-    const authorizationAge = agentAuthorization ? Date.now() - Date.parse(agentAuthorization.issuedAt) : Number.POSITIVE_INFINITY;
-    if (!activatedAgent || authorizationAge > AGENT_AUTH_WINDOW_MS - 5_000) {
+    if (!activatedAgent || !agentAuthorization || !isAgentAuthorizationFresh(agentAuthorization.issuedAt)) {
       activatedAgent = await agent.activate();
       agentAuthorization = agent.getAuthorization();
     }
@@ -546,7 +548,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          task: `Assess Arc wallet ${target} using current onchain evidence and return a signed risk report.`,
+          task: instruction.trim(),
           subject: target,
           maxPriceUsdc: Number(maxPrice),
           maxAgeSeconds: maxAge,
@@ -586,13 +588,21 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         <article className="mission-panel panel-light">
           <div className="section-heading"><div><span>Obligation builder</span><h2>Assess an Arc wallet.</h2></div></div>
           <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><strong>Wallet risk intelligence</strong><p>Live Arc evidence · pays 0.024 USDC only after verification</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
-          <div className="subject-heading"><span>Wallet address</span></div>
-          <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subjectAddress} onChange={(event) => setSubject(event.target.value.trim())} placeholder="0x..." spellCheck={false} /></div>
+          <label className="agent-instruction" htmlFor="agent-instruction"><span>Decision request</span><small>Tell the agent what this signed assessment will help you decide.</small></label>
+          <textarea id="agent-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={280} />
+          <div className="intent-presets" aria-label="Decision request templates">{[
+            ["Counterparty", "Assess whether this wallet is suitable for a USDC payment using current Arc activity."],
+            ["Treasury", "Check this wallet before approving a treasury payout and return signed risk evidence."],
+            ["Agent spend", "Evaluate whether an autonomous agent should transact with this wallet under the selected policy."],
+          ].map(([label, value]) => <button type="button" key={label} onClick={() => setInstruction(value)}>{label}</button>)}</div>
+          <div className="subject-heading"><span>Wallet to assess</span>{wallet.account && <button type="button" onClick={() => setSubject(wallet.account ?? "")}>Use connected wallet</button>}</div>
+          <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subject || wallet.account || ""} onChange={(event) => setSubject(event.target.value)} placeholder="0x..." spellCheck={false} /></div>
           <div className="policy-heading"><span>Protection level</span></div>
           <div className="policy-presets" role="group" aria-label="Execution policy preset">
             {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
           </div>
           <button className="run-button" type="button" onClick={runAgent} disabled={busy}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : "Assess wallet"}</span><ArrowIcon /></button>
+          <div className="signing-expectation"><SignalIcon kind={agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "settle" : "intent"} /><p><strong>{agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "No MetaMask popup is expected for this run." : "The first funded run will ask for wallet authorization."}</strong><span>{agent.wallet && Number(agent.wallet.gatewayBalanceUsdc) >= 0.024 ? "Your authorized Circle MPC agent signs the x402 payment from its Gateway balance." : "KNOT never takes your browser wallet key; the personal agent receives limited signing authority."}</span></p></div>
           {(error || agent.error) && <p className="error-message" role="alert">{error ?? agent.error}</p>}
         </article>
 
@@ -607,7 +617,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
       {completed && execution && <section className={`execution-receipt page-shell ${execution.status === "verified" ? "is-verified" : "is-blocked"}`} aria-label="Execution receipt">
         <div className="receipt-mark"><SignalIcon kind={execution.status === "verified" ? "verify" : "intent"} /></div>
-        <div className="receipt-title"><span>SEALED EXECUTION RECEIPT</span><h2>{execution.status === "verified" ? "Delivery verified. Payment unlocked." : "Policy held. Payment remained blocked."}</h2><p>{execution.id} · {new Date(execution.createdAt).toLocaleString()}</p></div>
+        <div className="receipt-title"><span>SEALED EXECUTION RECEIPT</span><h2>{execution.status === "verified" ? "Delivery verified. Payment unlocked." : "Policy held. Payment remained blocked."}</h2><p className="receipt-request">&ldquo;{execution.obligation.task}&rdquo;</p><small>{execution.id} · {new Date(execution.createdAt).toLocaleString()}</small></div>
         <dl>
           <div><dt>Provider</dt><dd>{acceptedAttempt?.provider ?? "None accepted"}</dd></div>
           <div><dt>Policy</dt><dd>{execution.obligation.maxPriceUsdc.toFixed(3)} USDC · {execution.obligation.maxAgeSeconds}s</dd></div>

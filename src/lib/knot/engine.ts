@@ -52,7 +52,7 @@ export async function executeJob(
           reputation: 78,
           proofSupport: false,
           endpoint: "/api/providers/arc-baseline/report",
-          request: async () => (await import("./arc-risk")).createArcBaselineDelivery(obligation.subject),
+          request: async () => (await import("./arc-risk")).createArcBaselineDelivery(obligation.subject, obligation.task),
         },
         {
           id: "arc-sentinel",
@@ -61,7 +61,7 @@ export async function executeJob(
           reputation: 96,
           proofSupport: true,
           endpoint: "/api/providers/arc-sentinel/report",
-          request: async () => (await import("./arc-risk")).createArcRiskDelivery(obligation.subject),
+          request: async () => (await import("./arc-risk")).createArcRiskDelivery(obligation.subject, obligation.task),
         },
       ] satisfies ServiceProvider[]
     : providers;

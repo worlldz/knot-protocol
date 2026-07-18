@@ -3,9 +3,11 @@ import { executeJob } from "./engine";
 
 describe("executeJob", () => {
   it("rejects bad evidence, falls back, and authorizes only the accepted provider", async () => {
-    const execution = await executeJob();
+    const task = "Assess whether this wallet is safe for a treasury payout.";
+    const execution = await executeJob({ task });
 
     expect(execution.status).toBe("verified");
+    expect(execution.obligation.task).toBe(task);
     expect(execution.attempts.map((attempt) => attempt.outcome)).toEqual([
       "rejected",
       "accepted",

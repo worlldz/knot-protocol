@@ -107,10 +107,11 @@ async function readArcWallet(subject: string) {
   return value;
 }
 
-export async function createArcBaselineDelivery(subject: string): Promise<Delivery> {
+export async function createArcBaselineDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
   const snapshot = await readArcWallet(subject);
   const payload = {
     subject,
+    decisionRequest: decisionRequest ?? "Assess this Arc wallet.",
     risk: snapshot.analysis.risk,
     observedAt: snapshot.observedAt,
     balanceUsdc: snapshot.analysis.balanceUsdc,
@@ -132,13 +133,14 @@ export async function createArcBaselineDelivery(subject: string): Promise<Delive
   };
 }
 
-export async function createArcRiskDelivery(subject: string): Promise<Delivery> {
+export async function createArcRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
   const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
   if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
   const snapshot = await readArcWallet(subject);
   const account = privateKeyToAccount(providerKey as Hex);
   const payload = {
     subject,
+    decisionRequest: decisionRequest ?? "Assess this Arc wallet.",
     risk: snapshot.analysis.risk,
     riskScore: snapshot.analysis.riskScore,
     confidence: 0.92,
