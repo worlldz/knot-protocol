@@ -535,7 +535,7 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
   );
 }
 
-function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
+function NetworkRibbon({ wallet, agent }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState }) {
   const correctChain = wallet.chainId === ARC_TESTNET.id;
   const action = !wallet.account ? () => wallet.connect() : !correctChain ? () => wallet.addOrSwitchArc() : agent.wallet ? () => agent.fund() : () => agent.activate();
   const actionLabel = !wallet.account ? "Connect wallet" : !correctChain ? "Switch to Arc" : agent.wallet ? agent.funding ? "Adding funds" : "Top up agent" : agent.busy ? "Preparing agent" : "Activate agent";
@@ -545,7 +545,7 @@ function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof us
       <div className="ribbon-metric"><i className="metric-glyph">A</i><span><small>Network</small><b>{correctChain ? "Arc Testnet connected" : "Arc Testnet"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">$</i><span><small>Connected wallet</small><b>{wallet.account && correctChain ? `${wallet.balance} USDC` : "Native USDC"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">M</i><span><small>Agent wallet</small><b>{agent.wallet ? `${Number(agent.wallet.balanceUsdc).toFixed(3)} USDC` : "Not activated"}</b></span></div>
-      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>Gateway balance</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : system?.mode === "live" ? "x402 live" : "x402 ready"}</b></span></div>
+      <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>Gateway balance</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : "x402 live"}</b></span></div>
       <button type="button" className={`ribbon-action ${agent.wallet ? "is-agent-ready" : ""}`} onClick={() => void action()} disabled={wallet.busy || agent.busy || agent.funding}>{actionLabel}<ArrowIcon /></button>
     </section>
   );
@@ -825,7 +825,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         </div>
       </section>
 
-      <NetworkRibbon wallet={wallet} agent={agent} system={system} />
+      <NetworkRibbon wallet={wallet} agent={agent} />
       <section className="demo-lab page-shell" aria-label="Policy ladder demo">
         <div className="demo-lab-copy">
           <span><i />JUDGE MODE</span>
