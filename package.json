@@ -12,7 +12,12 @@
     "test:unit": "vitest run",
     "test:contracts": "hardhat test",
     "contracts:compile": "hardhat compile",
-    "deploy:arc": "hardhat run scripts/deploy.ts --network arcTestnet --build-profile production"
+    "smoke:local": "tsx scripts/smoke-local.ts",
+    "build:sites": "node scripts/build-sites-worker.mjs",
+    "smoke:sites": "node scripts/smoke-sites-worker.mjs",
+    "deploy:arc": "node --env-file=.env.local node_modules/hardhat/dist/src/cli.js run scripts/deploy.ts --network arcTestnet --build-profile production",
+    "anchor:live": "tsx --env-file=.env.local scripts/anchor-live.ts",
+    "settle:erc8183": "tsx --env-file=.env.local scripts/run-erc8183-live.ts"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
@@ -22,7 +27,7 @@
     "@x402/evm": "^2.18.0",
     "@x402/extensions": "^2.18.0",
     "@x402/next": "^2.18.0",
-    "next": "16.2.10",
+    "next": "^16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "viem": "^2.55.2",
@@ -36,10 +41,18 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.2.11",
     "hardhat": "^3.10.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "fast-uri": "3.1.4",
+    "next": {
+      "postcss": "8.5.22",
+      "sharp": "0.35.3"
+    }
   }
 }

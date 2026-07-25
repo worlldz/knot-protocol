@@ -62,6 +62,7 @@ type ArcWalletSnapshot = {
   transactionCount: number;
   accountType: string;
   latestBlock: number;
+  bytecodeHash: string;
 };
 
 const snapshotCache = new Map<string, { expiresAt: number; value: Promise<ArcWalletSnapshot> }>();
@@ -91,6 +92,7 @@ async function loadArcWallet(subject: string): Promise<ArcWalletSnapshot> {
     transactionCount,
     accountType: isContract ? "contract" : "wallet",
     latestBlock: Number(BigInt(block.number)),
+    bytecodeHash: `0x${createHash("sha256").update(code).digest("hex")}`,
   };
 }
 
@@ -124,7 +126,7 @@ export async function createArcBaselineDelivery(subject: string, decisionRequest
   return {
     providerId: "arc-baseline",
     provider: "Arc Baseline",
-    priceUsdc: 0.018,
+    priceUsdc: 0.008,
     latencyMs: snapshot.latencyMs,
     ageSeconds: snapshot.ageSeconds,
     signatureValid: false,
@@ -161,6 +163,45 @@ export async function createArcRiskDelivery(subject: string, decisionRequest?: s
     providerId: "arc-sentinel",
     provider: "Arc Sentinel",
     priceUsdc: 0.024,
+    latencyMs: snapshot.latencyMs,
+    ageSeconds: snapshot.ageSeconds,
+    signatureValid,
+    payload,
+    evidenceHash,
+  };
+}
+
+export async function createArcDeepRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
+  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
+  if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
+  const snapshot = await readArcWallet(subject);
+  const account = privateKeyToAccount(providerKey as Hex);
+  const payload = {
+    subject,
+    decisionRequest: decisionRequest ?? "Run a code-aware Arc counterparty review.",
+    risk: snapshot.analysis.risk,
+    riskScore: snapshot.analysis.riskScore,
+    confidence: 0.97,
+    observedAt: snapshot.observedAt,
+    balanceUsdc: snapshot.analysis.balanceUsdc,
+    transactionCount: snapshot.transactionCount,
+    accountType: snapshot.accountType,
+    latestBlock: snapshot.latestBlock,
+    signals: snapshot.analysis.signals,
+    bytecodeHash: snapshot.bytecodeHash,
+    proofVersion: "KNOT-VERITAS-1",
+    inspectionScope: ["balance", "nonce", "account-code", "block-freshness"],
+    methodology: "KNOT Arc code-aware heuristic v1",
+    providerSigner: account.address,
+  };
+  const evidenceHash = `0x${createHash("sha256").update(JSON.stringify(payload)).digest("hex")}`;
+  const signature = await account.signMessage({ message: evidenceHash });
+  const signatureValid = await verifyMessage({ address: account.address, message: evidenceHash, signature });
+
+  return {
+    providerId: "arc-veritas",
+    provider: "Arc Veritas",
+    priceUsdc: 0.045,
     latencyMs: snapshot.latencyMs,
     ageSeconds: snapshot.ageSeconds,
     signatureValid,

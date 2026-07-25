@@ -16,7 +16,7 @@ describe("executeJob", () => {
     expect(execution.settlement).toMatchObject({
       status: "authorized",
       amountUsdc: 0.024,
-      recipient: "northstar-data",
+      recipient: "arc-sentinel",
       rail: "simulated",
       transactionHash: null,
     });
@@ -24,7 +24,7 @@ describe("executeJob", () => {
   });
 
   it("blocks settlement when the budget excludes every provider", async () => {
-    const execution = await executeJob({ maxPriceUsdc: 0.01 });
+    const execution = await executeJob({ maxPriceUsdc: 0.007 });
 
     expect(execution.status).toBe("failed");
     expect(execution.attempts).toHaveLength(0);

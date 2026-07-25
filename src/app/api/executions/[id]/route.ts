@@ -6,7 +6,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const execution = getExecution(id);
+  const execution = await getExecution(id);
 
   if (!execution) {
     return NextResponse.json({ error: "Execution not found" }, { status: 404 });

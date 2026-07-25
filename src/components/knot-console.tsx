@@ -13,17 +13,62 @@ import {
   shortAddress,
 } from "@/lib/arc-network";
 import { createAgentAuthorizationMessage, isAgentAuthorizationFresh } from "@/lib/knot/agent-auth";
-import type { Execution, ExecutionEvent, ProviderAttempt, VerificationCheck } from "@/lib/knot/schemas";
+import { JOB_TYPES, POLICY_PRESETS } from "@/lib/knot/catalog";
+import type { ExecutionQuote } from "@/lib/knot/quote";
+import type { ReceiptVerification } from "@/lib/knot/receipt-verifier";
+import type {
+  Execution,
+  ExecutionEvent,
+  JobType,
+  PolicyPreset,
+  ProviderAttempt,
+  VerificationCheck,
+} from "@/lib/knot/schemas";
 
 type SystemStatus = {
   mode: "local" | "live";
-  services: { verificationEngine: string; x402Buyer: string; x402Seller: string; settlementHook: string };
+  deployment: {
+    commerce: string;
+    hook: string;
+    explorerUrl: string;
+    verified: boolean;
+  };
+  latestProof: {
+    status: string;
+    jobId: string;
+    executionId: string;
+    evidenceHash: string;
+    attestationExplorerUrl: string;
+    completionExplorerUrl: string;
+  };
+  services: {
+    verificationEngine: string;
+    x402Buyer: string;
+    x402Seller: string;
+    circleAgent: string;
+    settlementHook: string;
+    evidenceAttester: string;
+    durableReceipts: string;
+    protocolApi: string;
+  };
 };
 
-type View = "console" | "payment" | "explore";
+type View = "console" | "receipts" | "payment" | "explore";
 type Theme = "light" | "dark";
-type PolicyPreset = "economy" | "balanced" | "strict" | "custom";
+type SettlementMode = "preview" | "live";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
+type DemoRunState = {
+  preset: Exclude<PolicyPreset, "custom">;
+  status: "idle" | "running" | "success" | "error";
+  execution?: Execution;
+  error?: string;
+};
+type QuoteState = {
+  status: "idle" | "loading" | "ready" | "error";
+  key?: string;
+  quote?: ExecutionQuote;
+  error?: string;
+};
 type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string; gatewayBalanceUsdc: string };
 type AgentWalletState = {
   wallet: AgentWallet | null;
@@ -38,11 +83,28 @@ type AgentWalletState = {
 };
 
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
-const policyPresets = {
-  economy: { maxPrice: "0.025", maxAge: 300, maxLatency: 3_000, requireSignature: false },
-  balanced: { maxPrice: "0.030", maxAge: 90, maxLatency: 1_400, requireSignature: true },
-  strict: { maxPrice: "0.050", maxAge: 30, maxLatency: 800, requireSignature: true },
-} as const;
+const demoSubject = "0x0000000000000000000000000000000000000001";
+const demoPolicyLadder: Array<{
+  preset: Exclude<PolicyPreset, "custom">;
+  jobType: JobType;
+  task: string;
+}> = [
+  {
+    preset: "economy",
+    jobType: "counterparty",
+    task: "Screen a counterparty wallet with the cheapest acceptable live Arc evidence.",
+  },
+  {
+    preset: "balanced",
+    jobType: "treasury",
+    task: "Decide whether a treasury agent can release a small USDC payout.",
+  },
+  {
+    preset: "strict",
+    jobType: "contract-review",
+    task: "Escalate a contract-facing wallet check to code-aware signed evidence.",
+  },
+];
 
 const resources = [
   { number: "01", icon: "SETTLE", label: "Arc network", title: "The stablecoin-native L1", copy: "Learn how Arc makes programmable money feel immediate, predictable, and EVM-native.", href: "https://www.arc.io/", tone: "lime" },
@@ -137,7 +199,7 @@ function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
 function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: number }) {
   const accepted = attempt?.outcome === "accepted";
   const rejected = attempt?.outcome === "rejected";
-  const signedProvider = attempt?.providerId === "arc-sentinel";
+  const signedProvider = attempt?.providerId !== "arc-baseline";
   const failedChecks = attempt?.verification.checks.filter((check) => !check.passed).map((check) => check.label.toLowerCase()).join(", ");
   return (
     <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
@@ -146,10 +208,10 @@ function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: nu
       <div className="provider-stats">
         <div><span>Quote</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
         <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 78 : 96)} / 100</b></div>
-        <div><span>Proof</span><b>{attempt?.proofSupport ?? true ? "Supported" : "Missing"}</b></div>
+        <div><span>Proof</span><b>{attempt?.proofSupport ? "Supported" : "Unsigned"}</b></div>
       </div>
       <p className="provider-note">{accepted ? "Live Arc evidence met every obligation. Settlement authorization was bound to this report hash." : rejected ? `Evidence rejected on ${failedChecks || "policy validation"}. No payment was released.` : index === 0 ? "A lower-cost Arc RPC snapshot competes first; KNOT routes onward when its proof envelope is incomplete." : "Queries Arc RPC at execution time, scores the requested address, and signs the resulting evidence envelope."}</p>
-      <p className="provider-fixture">Source: Arc Testnet RPC · {signedProvider ? "cryptographically signed report" : "unsigned baseline tier"}</p>
+      <p className="provider-fixture">Source: Arc Testnet RPC · {signedProvider ? "cryptographically signed report" : "unsigned public snapshot"}</p>
     </article>
   );
 }
@@ -164,7 +226,7 @@ function ProofRow({ check, label }: { check?: VerificationCheck; label: string }
 }
 
 function RiskReport({ attempt }: { attempt?: ProviderAttempt }) {
-  if (!attempt || attempt.providerId !== "arc-sentinel") return null;
+  if (!attempt || !["arc-sentinel", "arc-veritas"].includes(attempt.providerId)) return null;
   const payload = attempt.delivery.payload;
   const subject = typeof payload.subject === "string" ? payload.subject : "";
   const risk = typeof payload.risk === "string" ? payload.risk : "unknown";
@@ -177,7 +239,7 @@ function RiskReport({ attempt }: { attempt?: ProviderAttempt }) {
 
   return <section className="risk-report page-shell" aria-label="Live Arc wallet risk report">
     <div className="risk-score"><span>LIVE RISK SCORE</span><strong>{score}</strong><small>/ 100 · {risk.toUpperCase()}</small><i style={{ "--score": `${score}%` } as React.CSSProperties} /></div>
-    <div className="risk-report-main"><div className="risk-report-heading"><div><span>ARC SENTINEL REPORT</span><h2>Onchain evidence, not a generated answer.</h2></div><a href={`${ARC_TESTNET.explorerUrl}/address/${subject}`} target="_blank" rel="noreferrer">Inspect wallet <ExternalIcon /></a></div><code>{subject}</code><div className="risk-metrics"><div><span>Balance</span><strong>{balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDC</strong></div><div><span>Transactions</span><strong>{transactions}</strong></div><div><span>Account</span><strong>{accountType}</strong></div><div><span>Latest block</span><strong>{latestBlock.toLocaleString()}</strong></div></div></div>
+    <div className="risk-report-main"><div className="risk-report-heading"><div><span>{attempt.provider.toUpperCase()} REPORT</span><h2>Onchain evidence, not a generated answer.</h2></div><a href={`${ARC_TESTNET.explorerUrl}/address/${subject}`} target="_blank" rel="noreferrer">Inspect wallet <ExternalIcon /></a></div><code>{subject}</code><div className="risk-metrics"><div><span>Balance</span><strong>{balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDC</strong></div><div><span>Transactions</span><strong>{transactions}</strong></div><div><span>Account</span><strong>{accountType}</strong></div><div><span>Latest block</span><strong>{latestBlock.toLocaleString()}</strong></div></div></div>
     <div className="risk-signals"><span>DECISION SIGNALS</span>{signals.map((signal) => <p key={signal}><i />{signal}</p>)}<small>Heuristic evidence for agent policy decisions, not financial advice.</small></div>
   </section>;
 }
@@ -455,9 +517,10 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
       <nav className="site-nav page-shell">
         <button className="brand brand-button" type="button" onClick={() => setView("console")} aria-label="KNOT clearing console"><KnotMark /><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></button>
         <div className="view-tabs" role="tablist" aria-label="KNOT views">
-          <button type="button" role="tab" aria-selected={view === "console"} className={view === "console" ? "active" : ""} onClick={() => setView("console")}>Clearing console</button>
-          <button type="button" role="tab" aria-selected={view === "payment"} className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}>Send payment</button>
-          <button type="button" role="tab" aria-selected={view === "explore"} className={view === "explore" ? "active" : ""} onClick={() => setView("explore")}>Explore Arc</button>
+          <button type="button" role="tab" aria-selected={view === "console"} className={view === "console" ? "active" : ""} onClick={() => setView("console")}>Verify</button>
+          <button type="button" role="tab" aria-selected={view === "receipts"} className={view === "receipts" ? "active" : ""} onClick={() => setView("receipts")}>Receipts</button>
+          <button type="button" role="tab" aria-selected={view === "payment"} className={view === "payment" ? "active" : ""} onClick={() => setView("payment")}>Treasury</button>
+          <button type="button" role="tab" aria-selected={view === "explore"} className={view === "explore" ? "active" : ""} onClick={() => setView("explore")}>Protocol</button>
         </div>
         <div className="nav-actions"><ThemeButton theme={theme} onToggle={() => setTheme(theme === "dark" ? "light" : "dark")} /><WalletDock wallet={wallet} /></div>
       </nav>
@@ -484,13 +547,20 @@ function NetworkRibbon({ wallet, agent, system }: { wallet: ReturnType<typeof us
 
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [subject, setSubject] = useState("");
-  const [instruction, setInstruction] = useState("Assess whether this wallet is suitable for a USDC payment using current Arc activity.");
+  const [jobType, setJobType] = useState<JobType>("counterparty");
+  const [instruction, setInstruction] = useState(JOB_TYPES.counterparty.task);
   const [maxPrice, setMaxPrice] = useState("0.030");
-  const [maxAge, setMaxAge] = useState(90);
-  const [maxLatency, setMaxLatency] = useState(1_400);
+  const [maxAge, setMaxAge] = useState(POLICY_PRESETS.balanced.maxAgeSeconds);
+  const [maxLatency, setMaxLatency] = useState(POLICY_PRESETS.balanced.maxLatencyMs);
   const [requireSignature, setRequireSignature] = useState(true);
   const [policyPreset, setPolicyPreset] = useState<PolicyPreset>("balanced");
+  const [settlementMode, setSettlementMode] = useState<SettlementMode>("preview");
   const [execution, setExecution] = useState<Execution | null>(null);
+  const [demoRuns, setDemoRuns] = useState<DemoRunState[]>(
+    demoPolicyLadder.map((item) => ({ preset: item.preset, status: "idle" })),
+  );
+  const [demoRunning, setDemoRunning] = useState(false);
+  const [quoteState, setQuoteState] = useState<QuoteState>({ status: "idle" });
   const [visibleEvents, setVisibleEvents] = useState(0);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -525,52 +595,199 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const settlementEvent = execution?.events.findLast((item) => item.kind === "settlement");
   const settlementBlocked = execution?.settlement.status === "blocked";
   const busy = running || agent.busy || agent.funding || Boolean(execution && !completed);
+  const commerceAddress = system?.deployment.commerce ?? "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
+  const commerceExplorerUrl = system?.deployment.explorerUrl ?? "https://testnet.arcscan.app/address/0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
+  const completedJobId = system?.latestProof.jobId ?? "1";
+  const completionExplorerUrl = system?.latestProof.completionExplorerUrl ?? "https://testnet.arcscan.app/tx/0x97b6e863f1308fc11d2484495f9742be54e5f721ceaed55820e864b2b0a30f8d";
+  const quoteKey = [
+    subjectAddress.toLowerCase(),
+    jobType,
+    instruction.trim(),
+    maxPrice,
+    maxAge,
+    maxLatency,
+    requireSignature ? "signed" : "unsigned",
+    policyPreset,
+  ].join("|");
+  const currentQuoteState: QuoteState = quoteState.key === quoteKey ? quoteState : { status: "idle" };
 
   function applyPolicy(preset: Exclude<PolicyPreset, "custom">) {
-    const policy = policyPresets[preset];
+    const policy = POLICY_PRESETS[preset];
     setPolicyPreset(preset);
-    setMaxPrice(policy.maxPrice);
-    setMaxAge(policy.maxAge);
-    setMaxLatency(policy.maxLatency);
+    setMaxPrice(policy.maxPriceUsdc.toFixed(3));
+    setMaxAge(policy.maxAgeSeconds);
+    setMaxLatency(policy.maxLatencyMs);
     setRequireSignature(policy.requireSignature);
+  }
+
+  function applyJobType(nextType: JobType) {
+    setJobType(nextType);
+    setInstruction(JOB_TYPES[nextType].task);
+    if (nextType === "treasury" || nextType === "contract-review") {
+      applyPolicy("strict");
+    }
+  }
+
+  function rememberReceipt(id: string) {
+    const stored = JSON.parse(window.localStorage.getItem("knot-receipts") ?? "[]") as unknown;
+    const receiptIds = Array.isArray(stored)
+      ? stored.filter((item): item is string => typeof item === "string")
+      : [];
+    window.localStorage.setItem(
+      "knot-receipts",
+      JSON.stringify([id, ...receiptIds.filter((receiptId) => receiptId !== id)].slice(0, 25)),
+    );
+  }
+
+  async function requestExecution(input: {
+    jobType: JobType;
+    policyPreset: PolicyPreset;
+    task: string;
+    subject: string;
+    maxPriceUsdc: number;
+    maxAgeSeconds: number;
+    maxLatencyMs: number;
+    requiredFields: string[];
+    requireSignature: boolean;
+    agentAuthorization?: ReturnType<AgentWalletState["getAuthorization"]>;
+  }) {
+    const response = await fetch("/api/executions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
+    const nextExecution = data as Execution;
+    rememberReceipt(nextExecution.id);
+    return nextExecution;
+  }
+
+  function currentRequiredFields() {
+    return policyPreset === "custom"
+      ? POLICY_PRESETS.balanced.requiredFields
+      : POLICY_PRESETS[policyPreset].requiredFields;
+  }
+
+  async function quoteCurrentObligation() {
+    setError(null);
+    if (!isAddress(subjectAddress)) {
+      setQuoteState({ status: "error", key: quoteKey, error: "Enter a valid Arc wallet address before quoting." });
+      return;
+    }
+    if (instruction.trim().length < 12) {
+      setQuoteState({ status: "error", key: quoteKey, error: "Describe the decision before asking the market for a quote." });
+      return;
+    }
+
+    setQuoteState({ status: "loading", key: quoteKey });
+    try {
+      const response = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jobType,
+          policyPreset,
+          task: instruction.trim(),
+          subject: subjectAddress,
+          maxPriceUsdc: Number(maxPrice),
+          maxAgeSeconds: maxAge,
+          maxLatencyMs: maxLatency,
+          requiredFields: currentRequiredFields(),
+          requireSignature,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Quote could not be calculated.");
+      setQuoteState({ status: "ready", key: quoteKey, quote: data as ExecutionQuote });
+    } catch (cause) {
+      setQuoteState({ status: "error", key: quoteKey, error: cause instanceof Error ? cause.message : "Quote could not be calculated." });
+    }
+  }
+
+  async function runPolicyLadder() {
+    if (demoRunning || busy) return;
+    setError(null);
+    setDemoRunning(true);
+    setSettlementMode("preview");
+    setSubject(demoSubject);
+    setExecution(null);
+    setVisibleEvents(0);
+    setDemoRuns(demoPolicyLadder.map((item) => ({ preset: item.preset, status: "idle" })));
+
+    let finalExecution: Execution | null = null;
+    try {
+      for (const item of demoPolicyLadder) {
+        setDemoRuns((runs) => runs.map((run) => run.preset === item.preset ? { preset: item.preset, status: "running" } : run));
+        const policy = POLICY_PRESETS[item.preset];
+        const nextExecution = await requestExecution({
+          jobType: item.jobType,
+          policyPreset: item.preset,
+          task: item.task,
+          subject: demoSubject,
+          maxPriceUsdc: policy.maxPriceUsdc,
+          maxAgeSeconds: policy.maxAgeSeconds,
+          maxLatencyMs: policy.maxLatencyMs,
+          requiredFields: policy.requiredFields,
+          requireSignature: policy.requireSignature,
+        });
+        finalExecution = nextExecution;
+        setDemoRuns((runs) => runs.map((run) => run.preset === item.preset ? { preset: item.preset, status: "success", execution: nextExecution } : run));
+      }
+      if (finalExecution) {
+        applyPolicy("strict");
+        setJobType("contract-review");
+        setInstruction(demoPolicyLadder[2].task);
+        setExecution(finalExecution);
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Policy ladder could not complete.";
+      setError(message);
+      setDemoRuns((runs) => runs.map((run) => run.status === "running" ? { ...run, status: "error", error: message } : run));
+    } finally {
+      setDemoRunning(false);
+    }
   }
 
   async function runAgent() {
     setError(null);
     if (!isAddress(subjectAddress)) return setError("Enter a valid Arc wallet address to assess.");
     if (instruction.trim().length < 12) return setError("Tell the agent what decision this assessment should support.");
-    let activatedAgent = agent.wallet;
-    let agentAuthorization = agent.getAuthorization();
-    if (!activatedAgent || !agentAuthorization || !isAgentAuthorizationFresh(agentAuthorization.issuedAt)) {
-      activatedAgent = await agent.activate();
+    let agentAuthorization: ReturnType<AgentWalletState["getAuthorization"]> = null;
+    if (settlementMode === "live") {
+      let activatedAgent = agent.wallet;
       agentAuthorization = agent.getAuthorization();
+      if (!activatedAgent || !agentAuthorization || !isAgentAuthorizationFresh(agentAuthorization.issuedAt)) {
+        activatedAgent = await agent.activate();
+        agentAuthorization = agent.getAuthorization();
+      }
+      if (!activatedAgent) return;
+      if (!agentAuthorization) return setError("Agent authorization is missing. Sign the request again.");
+      const selectedCost = Number(maxPrice);
+      if (
+        Number(activatedAgent.gatewayBalanceUsdc) < selectedCost
+        && Number(activatedAgent.balanceUsdc) < 0.5
+      ) {
+        const funded = await agent.fund(activatedAgent);
+        if (!funded) return;
+      }
     }
-    if (!activatedAgent) return;
-    if (!agentAuthorization) return setError("Agent authorization is missing. Sign the request again.");
-    if (Number(activatedAgent.gatewayBalanceUsdc) < 0.024 && Number(activatedAgent.balanceUsdc) < 0.5) {
-      const funded = await agent.fund(activatedAgent);
-      if (!funded) return;
-    }
-    const target = subjectAddress || activatedAgent.owner;
+    const target = subjectAddress;
+    const requiredFields = currentRequiredFields();
     setExecution(null); setVisibleEvents(0); setRunning(true);
     try {
-      const response = await fetch("/api/executions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      const nextExecution = await requestExecution({
+          jobType,
+          policyPreset,
           task: instruction.trim(),
           subject: target,
           maxPriceUsdc: Number(maxPrice),
           maxAgeSeconds: maxAge,
           maxLatencyMs: maxLatency,
-          requiredFields: ["risk", "confidence", "observedAt", "balanceUsdc", "transactionCount"],
+          requiredFields,
           requireSignature,
-          agentAuthorization,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
-      const nextExecution = data as Execution;
+          ...(agentAuthorization ? { agentAuthorization } : {}),
+        });
       setExecution(nextExecution);
       if (nextExecution.settlement.status === "received") {
         const previousBalance = agent.wallet?.gatewayBalanceUsdc;
@@ -590,37 +807,107 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   return (
     <>
       <section className="hero page-shell">
-        <div className="hero-kicker"><span>01</span><p>THE TRUST LAYER BETWEEN AGENT INTENT AND MACHINE PAYMENT</p></div>
+        <div className="hero-kicker"><span>01</span><p>OUTCOME CLEARING FOR AUTONOMOUS COMMERCE</p></div>
         <div className="hero-grid">
-          <h1>Agents can pay.<span>KNOT checks delivery.</span></h1>
+          <h1 aria-label="Never pay an API for an answer you cannot trust.">Never pay an API <span>for an answer you cannot trust.</span></h1>
           <div className="hero-aside hero-trust-card">
             <div className="hero-aside-status"><span><i />TRUST ENGINE</span><b>LIVE / ARC TESTNET</b></div>
             <EvidencePulse />
-            <p><strong>Payment is not proof of delivery.</strong> KNOT turns an agent&apos;s intent into enforceable evidence conditions, rejects stale or malformed work, and authorizes USDC only after every check passes.</p>
+            <p><strong>KNOT is the clearing layer for machine work.</strong> Define what a valid result means, let providers compete, and release USDC only when the winning evidence satisfies the policy.</p>
             <div className="hero-proof"><span><i />Evidence-bound</span><span><i />Fallback-aware</span><span><i />Settlement-safe</span></div>
           </div>
         </div>
       </section>
 
       <NetworkRibbon wallet={wallet} agent={agent} system={system} />
+      <section className="demo-lab page-shell" aria-label="Policy ladder demo">
+        <div className="demo-lab-copy">
+          <span><i />JUDGE MODE</span>
+          <h2>Run the whole proof ladder.</h2>
+          <p>One click runs the same wallet through Economy, Balanced, and Strict. KNOT should choose a different provider route and price as the obligation gets harder.</p>
+        </div>
+        <div className="demo-lab-runs">
+          {demoRuns.map((run) => {
+            const policy = POLICY_PRESETS[run.preset];
+            const accepted = run.execution?.attempts.find((attempt) => attempt.outcome === "accepted");
+            return (
+              <article className={`demo-run-card is-${run.status}`} key={run.preset}>
+                <span>{policy.label}</span>
+                <h3>{accepted?.provider ?? policy.expectedProvider}</h3>
+                <dl>
+                  <div><dt>Route</dt><dd>{run.execution ? `${run.execution.attempts.length} attempt${run.execution.attempts.length === 1 ? "" : "s"}` : "pending"}</dd></div>
+                  <div><dt>Price</dt><dd>{run.execution ? `${run.execution.settlement.amountUsdc.toFixed(3)} USDC` : `up to ${policy.maxPriceUsdc.toFixed(3)}`}</dd></div>
+                </dl>
+                <small>{run.status === "running" ? "verifying live evidence" : run.status === "success" ? `receipt ${run.execution?.id}` : run.status === "error" ? run.error : policy.description}</small>
+              </article>
+            );
+          })}
+        </div>
+        <button type="button" className="demo-lab-action" onClick={() => void runPolicyLadder()} disabled={demoRunning || busy}>
+          {demoRunning ? "Running policy ladder" : "Run 3-policy proof"}
+          <ArrowIcon />
+        </button>
+      </section>
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
-          <div className="section-heading"><div><span>Obligation builder</span><h2>Assess an Arc wallet.</h2></div></div>
-          <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><strong>Wallet risk intelligence</strong><p>Live Arc evidence · pays 0.024 USDC only after verification</p></div><StatusPill ready={system?.mode === "live"}>x402 {system?.mode === "live" ? "LIVE" : "READY"}</StatusPill></div>
+          <div className="section-heading"><div><span>Obligation builder</span><h2>Define the decision.</h2></div></div>
+          <div className="job-product"><div className="job-product-icon"><SignalIcon kind="verify" /></div><div><strong>{JOB_TYPES[jobType].label}</strong><p>{JOB_TYPES[jobType].description}</p></div><StatusPill ready={system?.mode === "live"}>ARC DATA LIVE</StatusPill></div>
+          <div className="intent-presets job-type-grid" aria-label="Decision type">
+            {(Object.keys(JOB_TYPES) as JobType[]).map((type) => (
+              <button type="button" key={type} className={jobType === type ? "active" : ""} onClick={() => applyJobType(type)} aria-label={`${JOB_TYPES[type].label}: ${JOB_TYPES[type].description}`}>
+                <span>{JOB_TYPES[type].shortLabel}</span>
+                <small>{JOB_TYPES[type].description}</small>
+              </button>
+            ))}
+          </div>
           <label className="agent-instruction" htmlFor="agent-instruction"><span>Decision request</span><small>Tell the agent what this signed assessment will help you decide.</small></label>
           <textarea id="agent-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={280} />
-          <div className="intent-presets" aria-label="Decision request templates">{[
-            ["Counterparty", "Assess whether this wallet is suitable for a USDC payment using current Arc activity."],
-            ["Treasury", "Check this wallet before approving a treasury payout and return signed risk evidence."],
-            ["Agent spend", "Evaluate whether an autonomous agent should transact with this wallet under the selected policy."],
-          ].map(([label, value]) => <button type="button" key={label} onClick={() => setInstruction(value)}>{label}</button>)}</div>
           <div className="subject-heading"><span>Wallet to assess</span>{wallet.account && <button type="button" onClick={() => setSubject(wallet.account ?? "")}>Use connected wallet</button>}</div>
           <div className={`subject-input ${subjectAddress && !isAddress(subjectAddress) ? "is-invalid" : ""}`}><i><WalletIcon /></i><input aria-label="Arc wallet address" value={subject || wallet.account || ""} onChange={(event) => setSubject(event.target.value)} placeholder="0x..." spellCheck={false} /></div>
           <div className="policy-heading"><span>Protection level</span></div>
           <div className="policy-presets" role="group" aria-label="Execution policy preset">
-            {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)}><span>{preset}</span><small>{preset === "economy" ? "Lower cost" : preset === "balanced" ? "Default proof" : "Tighter evidence"}</small></button>)}
+            {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)} aria-label={`${POLICY_PRESETS[preset].label}: ${POLICY_PRESETS[preset].expectedProvider}, up to ${POLICY_PRESETS[preset].maxPriceUsdc.toFixed(3)} USDC`}><span>{POLICY_PRESETS[preset].label}</span><small>{POLICY_PRESETS[preset].expectedProvider} · up to {POLICY_PRESETS[preset].maxPriceUsdc.toFixed(3)} USDC</small></button>)}
           </div>
-          <button className="run-button" type="button" onClick={runAgent} disabled={busy}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : "Assess wallet"}</span><ArrowIcon /></button>
+          <div className="policy-controls">
+            <label><span>Max price</span><div><input value={maxPrice} inputMode="decimal" onChange={(event) => { setMaxPrice(event.target.value); setPolicyPreset("custom"); }} /><b>USDC</b></div></label>
+            <label><span>Max age</span><div><input type="number" min={1} max={86400} value={maxAge} onChange={(event) => { setMaxAge(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>SEC</b></div></label>
+            <label><span>Max latency</span><div><input type="number" min={1} max={30000} value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>MS</b></div></label>
+            <button type="button" className={requireSignature ? "is-required" : ""} onClick={() => { setRequireSignature((value) => !value); setPolicyPreset("custom"); }}><span>Signed proof</span><b>{requireSignature ? "REQUIRED" : "OPTIONAL"}</b></button>
+          </div>
+          <div className={`preflight-card is-${currentQuoteState.status}`}>
+            <div className="preflight-topline">
+              <div><span>Preflight market quote</span><strong>{currentQuoteState.quote?.recommendedProvider?.name ?? (currentQuoteState.status === "error" ? "Needs attention" : "No execution yet")}</strong></div>
+              <button type="button" onClick={() => void quoteCurrentObligation()} disabled={currentQuoteState.status === "loading" || running || demoRunning}>
+                {currentQuoteState.status === "loading" ? "Quoting" : "Quote route"}
+              </button>
+            </div>
+            {currentQuoteState.status === "ready" && currentQuoteState.quote ? (
+              <>
+                <dl className="preflight-metrics">
+                  <div><dt>Decision</dt><dd>{currentQuoteState.quote.decision.toUpperCase()}</dd></div>
+                  <div><dt>Max spend</dt><dd>{currentQuoteState.quote.maxSpendUsdc.toFixed(3)} USDC</dd></div>
+                  <div><dt>Route</dt><dd>{currentQuoteState.quote.route.length} provider{currentQuoteState.quote.route.length === 1 ? "" : "s"}</dd></div>
+                </dl>
+                <div className="preflight-route">
+                  {currentQuoteState.quote.route.map((provider) => (
+                    <article className={`preflight-provider is-${provider.expectedOutcome}`} key={provider.id}>
+                      <span>{provider.name}</span>
+                      <strong>{provider.priceUsdc.toFixed(3)} USDC</strong>
+                      <small>{provider.canSatisfy ? "Can satisfy obligation" : provider.reasons[0]}</small>
+                    </article>
+                  ))}
+                </div>
+                {currentQuoteState.quote.blockers.length > 0 && <p className="preflight-error">{currentQuoteState.quote.blockers.join(" ")}</p>}
+              </>
+            ) : (
+              <p className={currentQuoteState.status === "error" ? "preflight-error" : ""}>{currentQuoteState.error ?? "Ask KNOT to quote the provider route before any proof run or wallet-funded settlement."}</p>
+            )}
+          </div>
+          <div className="settlement-choice" role="group" aria-label="Settlement mode">
+            <button type="button" className={settlementMode === "preview" ? "active" : ""} onClick={() => setSettlementMode("preview")}><span>Proof preview</span><small>Live Arc data, no USDC charged</small></button>
+            <button type="button" className={settlementMode === "live" ? "active" : ""} onClick={() => setSettlementMode("live")}><span>Live clearing</span><small>Agent pays only the accepted provider</small></button>
+          </div>
+          <button className="run-button" type="button" onClick={runAgent} disabled={busy}><span>{agent.busy ? "Authorize agent in your wallet" : running || Boolean(execution && !completed) ? "Agent is verifying live evidence" : settlementMode === "live" ? "Run and settle verified work" : "Run proof preview"}</span><ArrowIcon /></button>
           {(error || agent.error) && <p className="error-message" role="alert">{error ?? agent.error}</p>}
         </article>
 
@@ -641,13 +928,14 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           <div><dt>Policy</dt><dd>{execution.obligation.maxPriceUsdc.toFixed(3)} USDC · {execution.obligation.maxAgeSeconds}s</dd></div>
           <div><dt>Rail</dt><dd>{execution.settlement.rail.replaceAll("-", " ")}</dd></div>
           <div><dt>Evidence</dt><dd><ShortHash value={execution.settlement.evidenceHash} /></dd></div>
+          <div><dt>Arc anchor</dt><dd>{execution.settlement.attestation.status === "confirmed" ? "Confirmed" : execution.settlement.attestation.status === "failed" ? "Failed" : "Preview only"}</dd></div>
         </dl>
-        <a href={`/api/executions/${execution.id}`} target="_blank" rel="noreferrer">Open machine receipt <ExternalIcon /></a>
+        <a href={`/receipt/${execution.id}`} target="_blank" rel="noreferrer">Open verified receipt <ExternalIcon /></a>
       </section>}
 
       {completed && execution && <section className="results page-shell">
         <div className="section-index"><span>02</span><p>MARKET SELECTION</p></div>
-        <div className="provider-grid"><ProviderCard attempt={execution?.attempts[0]} index={0} /><ProviderCard attempt={execution?.attempts[1]} index={1} /></div>
+        <div className="provider-grid">{execution.attempts.map((attempt, index) => <ProviderCard attempt={attempt} index={index} key={attempt.providerId} />)}</div>
         <div className="evidence-grid">
           <article className="proof-panel panel-light">
             <div className="section-heading compact"><div><span>Evidence envelope</span><h2>Verification matrix</h2></div><span className={`proof-score ${completed ? "ready" : ""}`}>{completed ? `${checks?.filter((check) => check.passed).length ?? 0} / 5 PASS` : "WAITING"}</span></div>
@@ -657,7 +945,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             <div className="settlement-orbit" aria-hidden="true"><i /><i /><i /></div>
             <div className="settlement-heading"><span>Settlement result</span><b>{settlementBlocked ? "BLOCKED" : completed ? execution?.settlement.status === "received" ? "X402 RECEIVED" : "AUTHORIZED" : "LOCKED"}</b></div>
             <p className={`settlement-amount ${settlementBlocked ? "is-blocked" : ""}`}>{settlementBlocked ? "BLOCKED" : completed ? execution?.settlement.amountUsdc.toFixed(3) : "0.000"}{!settlementBlocked && <span>USDC</span>}</p>
-            <dl className="settlement-data"><div><dt>Rail</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>Evidence</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>{execution?.settlement.rail === "x402-gateway" ? "Gateway transfer" : "Onchain tx"}</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div></dl>
+            <dl className="settlement-data"><div><dt>Rail</dt><dd>{execution?.settlement.rail.toUpperCase() ?? "SIMULATED"}</dd></div><div><dt>Evidence</dt><dd><ShortHash value={execution?.settlement.evidenceHash ?? null} /></dd></div><div><dt>{execution?.settlement.rail === "x402-gateway" ? "Gateway transfer" : "Onchain tx"}</dt><dd>{execution?.settlement.transactionHash ? <ShortHash value={execution.settlement.transactionHash} /> : "Not broadcast"}</dd></div><div><dt>Hook attestation</dt><dd>{execution.settlement.attestation.status.toUpperCase()}</dd></div></dl>
             <p className="settlement-disclaimer">{settlementBlocked ? settlementEvent?.detail ?? "Circle Gateway did not accept the payment authorization." : completed ? execution?.settlement.status === "received" ? "Circle Gateway accepted the x402 transfer. Provider credit finalizes through batched settlement." : "The evidence is accepted. The commitment is ready for the KNOT ERC-8183 completion hook." : "Settlement stays unavailable until one provider satisfies every condition."}</p>
           </article>
         </div>
@@ -665,14 +953,156 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
       <section className="architecture page-shell">
         <div className="section-index light"><span>03</span><p>THE PROTOCOL KNOT</p></div>
-        <div className="architecture-head"><h2>Payment is easy.<br />Proof is the hard part.</h2><p>KNOT is not another agent wallet. It is the policy and evidence layer that sits between service delivery and programmable money.</p></div>
+        <div className="architecture-head"><h2>Payment is easy.<br />Proof is the hard part.</h2><p>KNOT is not another agent wallet. It is a reusable clearing layer for API marketplaces, autonomous treasury operations, and agent-to-agent services.</p></div>
         <div className="flow-map">{[["01", "INTENT", "Buyer defines measurable constraints", "PRICE · AGE · LATENCY · SCHEMA"], ["02", "MARKET", "Providers expose paid services over x402", "QUOTE · PROOF · REPUTATION"], ["03", "EVIDENCE", "KNOT verifies output and binds its hash", "FRESHNESS · SIGNATURE · HASH"], ["04", "SETTLE", "ERC-8183 releases USDC or keeps it blocked", "USDC · GATEWAY · FINALITY"]].map(([number, title, copy, telemetry], index) => <div className="flow-node" key={title}><div className="flow-node-top"><span>{number}</span><i><ProtocolIcon kind={title} /></i></div><h3>{title}</h3><p>{copy}</p><small>{telemetry}</small>{index < 3 && <ArrowIcon />}</div>)}</div>
-        <div className="protocol-deployment"><div><span><i />ARC TESTNET DEPLOYMENT</span><strong>KnotVerificationHook is live and source-verified.</strong></div><code>0x8ce32a5f...8aa93004</code><a href="https://testnet.arcscan.app/address/0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004" target="_blank" rel="noreferrer">Inspect contract <ExternalIcon /></a></div>
-        <div className="protocol-strip"><p><SignalIcon kind="market" /><span>Circle Gateway</span>HTTP-native x402 authorization and batched nanopayment settlement.</p><p><SignalIcon kind="verify" /><span>ERC-8183 Hook</span>Accepted evidence is bound to the job before completion can execute.</p><p><SignalIcon kind="settle" /><span>Arc + USDC</span>Stablecoin-native value, predictable fees, and deterministic finality.</p></div>
+        <div className="protocol-deployment"><div><span><i />ARC TESTNET / JOB #{completedJobId} COMPLETED</span><strong>KnotCommerce and its evidence hook are live and source-verified.</strong></div><code>{shortAddress(commerceAddress)}</code><a href={`${commerceExplorerUrl}#code`} target="_blank" rel="noreferrer">Inspect commerce kernel <ExternalIcon /></a><a href={completionExplorerUrl} target="_blank" rel="noreferrer">View completed job <ExternalIcon /></a></div>
+        <div className="protocol-strip"><p><SignalIcon kind="market" /><span>Circle Gateway</span>HTTP-native x402 authorization and batched nanopayment settlement.</p><p><SignalIcon kind="verify" /><span>ERC-8183 Hook</span>Live settlements anchor accepted evidence for an enforceable job completion.</p><p><SignalIcon kind="settle" /><span>Arc + USDC</span>Stablecoin-native value, predictable fees, and deterministic finality.</p></div>
       </section>
 
       <BuildOnArcBand />
     </>
+  );
+}
+
+function ReceiptsView({ system }: { system: SystemStatus | null }) {
+  const [executions, setExecutions] = useState<Execution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [verifyId, setVerifyId] = useState("");
+  const [verifyHash, setVerifyHash] = useState("");
+  const [verification, setVerification] = useState<ReceiptVerification | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const launchProof = system?.latestProof;
+  const deployment = system?.deployment;
+
+  useEffect(() => {
+    const loadReceipts = async () => {
+      const stored = JSON.parse(window.localStorage.getItem("knot-receipts") ?? "[]") as unknown;
+      const ids = Array.isArray(stored)
+        ? stored.filter((item): item is string => typeof item === "string").slice(0, 25)
+        : [];
+      if (ids.length === 0) {
+        return [];
+      }
+
+      const response = await fetch(`/api/executions?ids=${encodeURIComponent(ids.join(","))}`);
+      const data = (await response.json()) as { executions?: Execution[] };
+      return data.executions ?? [];
+    };
+
+    loadReceipts()
+      .then(setExecutions)
+      .catch(() => setExecutions([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function submitReceiptVerification(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setVerifyError(null);
+    setVerification(null);
+    const id = verifyId.trim();
+    const evidenceHash = verifyHash.trim();
+    if (!/^run_[a-f0-9]{12}$/.test(id)) {
+      setVerifyError("Enter a KNOT receipt ID like run_123456789abc.");
+      return;
+    }
+    if (evidenceHash && !/^0x[0-9a-fA-F]{64}$/.test(evidenceHash)) {
+      setVerifyError("Evidence hash must be a 32-byte 0x value.");
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const query = new URLSearchParams({ id });
+      if (evidenceHash) query.set("evidenceHash", evidenceHash);
+      const response = await fetch(`/api/receipts/verify?${query.toString()}`);
+      const data = await response.json();
+      if (!("valid" in data)) throw new Error(data.error ?? "Receipt verification failed.");
+      setVerification(data as ReceiptVerification);
+    } catch (cause) {
+      setVerifyError(cause instanceof Error ? cause.message : "Receipt verification failed.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  return (
+    <section className="view-page receipts-page page-shell">
+      <div className="view-hero receipts-hero">
+        <div><span className="eyebrow">DECISION LEDGER</span><h1>Every outcome.<br /><em>Every reason.</em></h1></div>
+        <p>KNOT receipts preserve the obligation, rejected offers, accepted evidence, payment rail, and Arc attestation. A machine can read the same record shown here.</p>
+      </div>
+
+      <div className="receipt-ledger-head">
+        <div><span>Local receipt index</span><h2>{loading ? "Loading decisions" : `${executions.length} retained execution${executions.length === 1 ? "" : "s"}`}</h2></div>
+        <p>Receipts are private by default through unguessable IDs. Share a receipt URL when another party needs to audit the decision.</p>
+      </div>
+
+      {launchProof && deployment && (
+        <article className="launch-proof-card">
+          <div className="launch-proof-copy">
+            <span><i />ARC TESTNET LAUNCH PROOF</span>
+            <h2>Job #{launchProof.jobId} cleared through the KNOT hook.</h2>
+            <p>The completed testnet job proves the same evidence hash can move from a KNOT receipt into the onchain commerce lifecycle.</p>
+          </div>
+          <dl>
+            <div><dt>Execution</dt><dd>{launchProof.executionId}</dd></div>
+            <div><dt>Evidence</dt><dd><ShortHash value={launchProof.evidenceHash} /></dd></div>
+            <div><dt>Commerce</dt><dd>{shortAddress(deployment.commerce)}</dd></div>
+            <div><dt>Hook</dt><dd>{shortAddress(deployment.hook)}</dd></div>
+          </dl>
+          <div className="launch-proof-actions">
+            <a href={launchProof.attestationExplorerUrl} target="_blank" rel="noreferrer">View attestation <ExternalIcon /></a>
+            <a href={launchProof.completionExplorerUrl} target="_blank" rel="noreferrer">View completion <ExternalIcon /></a>
+          </div>
+        </article>
+      )}
+
+      <form className="receipt-verifier-card" onSubmit={(event) => void submitReceiptVerification(event)}>
+        <div className="receipt-verifier-copy">
+          <span>VERIFY A RECEIPT</span>
+          <h2>Check the evidence binding.</h2>
+          <p>Paste a receipt ID and, optionally, an evidence hash. KNOT will verify that the stored accepted delivery still satisfies the obligation and matches settlement.</p>
+        </div>
+        <label>
+          <span>Receipt ID</span>
+          <input value={verifyId} onChange={(event) => setVerifyId(event.target.value)} placeholder="run_123456789abc" spellCheck={false} />
+        </label>
+        <label>
+          <span>Evidence hash</span>
+          <input value={verifyHash} onChange={(event) => setVerifyHash(event.target.value)} placeholder="0x..." spellCheck={false} />
+        </label>
+        <button type="submit" disabled={verifying}>{verifying ? "Verifying" : "Verify receipt"}<ArrowIcon /></button>
+        {(verifyError || verification) && (
+          <div className={`receipt-verifier-result ${verification?.valid ? "is-valid" : "is-invalid"}`} role="status">
+            <strong>{verifyError ?? (verification?.valid ? "Receipt verified" : verification?.status === "missing" ? "Receipt not found" : "Receipt did not verify")}</strong>
+            {verification && <p>{verification.reasons.join(" ")}</p>}
+            {verification?.receipt && <small>{verification.receipt.provider ?? "No provider"} / {verification.receipt.amountUsdc.toFixed(3)} USDC / {verification.receipt.attempts} attempt{verification.receipt.attempts === 1 ? "" : "s"}</small>}
+          </div>
+        )}
+      </form>
+
+      {loading ? <div className="receipt-empty"><HourglassIcon /><p>Reading the execution ledger</p></div> : executions.length === 0 ? (
+        <div className="receipt-empty"><KnotMark /><h2>No receipts yet.</h2><p>Run a proof preview or live clearing execution to create the first auditable record.</p><a href="#console">Open verifier <ArrowIcon /></a></div>
+      ) : (
+        <div className="receipt-ledger">
+          {executions.map((execution) => {
+            const accepted = execution.attempts.find((attempt) => attempt.outcome === "accepted");
+            return <article className={`receipt-card ${execution.status === "verified" ? "is-verified" : "is-blocked"}`} key={execution.id}>
+              <div className="receipt-card-status"><span><i />{execution.status === "verified" ? "VERIFIED" : "BLOCKED"}</span><small>{new Date(execution.createdAt).toLocaleString()}</small></div>
+              <div className="receipt-card-main"><span>{JOB_TYPES[execution.obligation.jobType].label}</span><h2>{execution.obligation.task}</h2><code>{execution.obligation.subject}</code></div>
+              <dl>
+                <div><dt>Provider</dt><dd>{accepted?.provider ?? "None"}</dd></div>
+                <div><dt>Amount</dt><dd>{execution.settlement.amountUsdc.toFixed(3)} USDC</dd></div>
+                <div><dt>Route</dt><dd>{execution.attempts.length} attempt{execution.attempts.length === 1 ? "" : "s"}</dd></div>
+                <div><dt>Arc proof</dt><dd>{execution.settlement.attestation.status}</dd></div>
+              </dl>
+              <a href={`/receipt/${execution.id}`}>Inspect receipt <ArrowIcon /></a>
+            </article>;
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -763,6 +1193,42 @@ function ExploreView() {
 
       <BuildOnArcBand />
 
+      <section className="developer-surface">
+        <div className="developer-copy">
+          <span>DEVELOPER SURFACE</span>
+          <h2>Wire KNOT into an agent in minutes.</h2>
+          <p>The app exposes agent discovery, OpenAPI, preflight quotes, typed receipt reads, and a protected execution path for server-side agents.</p>
+        </div>
+        <div className="developer-card">
+          <div><span>GET</span><code>/.well-known/knot</code><small>Agent discovery with capabilities, auth boundaries, and recommended flow.</small></div>
+          <div><span>GET</span><code>/api/openapi</code><small>OpenAPI 3.1 contract for quote, execute, receipt, and status calls.</small></div>
+          <div><span>POST</span><code>/api/quote</code><small>Preflight route, max spend, and provider fallback reasons before execution.</small></div>
+          <div><span>POST</span><code>/api/executions</code><small>Run an obligation and receive a signed settlement receipt.</small></div>
+          <div><span>GET</span><code>/api/manifest</code><small>Read jobs, policies, contracts, examples, and endpoint metadata.</small></div>
+          <div><span>GET</span><code>/api/system/status</code><small>Check live rails without exposing configured secrets.</small></div>
+        </div>
+        <pre className="developer-snippet">{`const knot = createKnotClient({ baseUrl: KNOT_URL });
+const quote = await knot.quote({
+  jobType: "treasury",
+  policyPreset: "strict",
+  subject: "0x0000000000000000000000000000000000000001",
+  maxPriceUsdc: 0.05
+});
+
+const receipt = await knot.run({
+  jobType: "treasury",
+  policyPreset: "strict",
+  subject: "0x0000000000000000000000000000000000000001",
+  maxPriceUsdc: 0.05
+        });`}</pre>
+        <div className="developer-actions">
+          <a href="/.well-known/knot" target="_blank" rel="noreferrer">Agent discovery <ExternalIcon /></a>
+          <a href="/api/openapi" target="_blank" rel="noreferrer">OpenAPI <ExternalIcon /></a>
+          <a href="/api/manifest" target="_blank" rel="noreferrer">Open manifest <ExternalIcon /></a>
+          <a href="/api/system/status" target="_blank" rel="noreferrer">Check status <ExternalIcon /></a>
+        </div>
+      </section>
+
       <div className="resource-heading"><div><span>Curated resources</span><h2>Explore the stack</h2></div><p>Official references only. Every link opens the source used to shape KNOT&apos;s architecture.</p></div>
       <div className="resource-grid">
         {resources.map((resource) => <a className={`resource-card tone-${resource.tone}`} href={resource.href} target="_blank" rel="noreferrer" key={resource.number}><div><span>{resource.number}</span><small>{resource.label}</small><ExternalIcon /></div><i className="resource-symbol"><ProtocolIcon kind={resource.icon} /></i><h3>{resource.title}</h3><p>{resource.copy}</p><b>Open resource <ArrowIcon /></b></a>)}
@@ -791,7 +1257,7 @@ export function KnotConsole() {
   useEffect(() => {
     const syncViewFromHash = () => {
       const hash = window.location.hash.slice(1);
-      if (hash === "payment" || hash === "explore" || hash === "console") setView(hash);
+      if (hash === "payment" || hash === "explore" || hash === "receipts" || hash === "console") setView(hash);
     };
     const initialSync = window.setTimeout(syncViewFromHash, 0);
     window.addEventListener("hashchange", syncViewFromHash);
@@ -833,6 +1299,7 @@ export function KnotConsole() {
       <div className="ambient-grid" />
       <SiteHeader view={view} setView={navigateTo} theme={theme} setTheme={updateTheme} wallet={wallet} />
       {view === "console" && <ConsoleView wallet={wallet} agent={agent} system={system} />}
+      {view === "receipts" && <ReceiptsView system={system} />}
       {view === "payment" && <PaymentView wallet={wallet} />}
       {view === "explore" && <ExploreView />}
       <footer className="site-footer page-shell"><div className="brand"><KnotMark /><span><b>KNOT</b><small>PAY FOR VERIFIED OUTCOMES</small></span></div><p>Built for autonomous commerce on Arc.</p><div><span>ARC TESTNET</span><span>USDC</span><span>x402</span><span>ERC-8183</span></div></footer>

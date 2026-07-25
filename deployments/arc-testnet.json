@@ -1,14 +1,25 @@
 {
   "network": "Arc Testnet",
   "chainId": 5042002,
-  "contract": "KnotVerificationHook",
-  "address": "0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004",
-  "deploymentTransaction": "0xad2a38a80fe72a92c2b6d6907086beea3c675c430cda56e491da1b62a50bfb2d",
-  "blockNumber": 52308497,
-  "deployedAt": "2026-07-17T18:03:48.000000Z",
-  "commerceProtocol": "0x0747EEf0706327138c69792bF28Cd525089e4583",
+  "deployedAt": "2026-07-24T06:13:00.000Z",
   "admin": "0x20bBf0cc5F509B1A84A980a9165E10CD5a5412d9",
   "verifier": "0x20bBf0cc5F509B1A84A980a9165E10CD5a5412d9",
-  "verified": true,
-  "explorerUrl": "https://testnet.arcscan.app/address/0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004"
+  "paymentToken": "0x3600000000000000000000000000000000000000",
+  "commerce": {
+    "contract": "KnotCommerce",
+    "address": "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f",
+    "verified": true,
+    "explorerUrl": "https://testnet.arcscan.app/address/0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f"
+  },
+  "hook": {
+    "contract": "KnotVerificationHook",
+    "address": "0x73b00398580ba7a19ffb7a5677cf3970e15918d5",
+    "commerceProtocol": "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f",
+    "verified": true,
+    "explorerUrl": "https://testnet.arcscan.app/address/0x73b00398580ba7a19ffb7a5677cf3970e15918d5"
+  },
+  "previousHook": {
+    "address": "0x8ce32a5fedd6e1284eb75ee4bb37dd8d8aa93004",
+    "commerceProtocol": "0x0747EEf0706327138c69792bF28Cd525089e4583"
+  }
 }

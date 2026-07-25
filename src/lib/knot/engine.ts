@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { attestEvidence } from "./attestation";
+import { POLICY_PRESETS } from "./catalog";
 import { localProviders, type ServiceProvider } from "./providers";
 import type {
   CreateExecutionInput,
@@ -11,6 +13,8 @@ import { executionSchema } from "./schemas";
 import { verifyDelivery } from "./verification";
 
 export const defaultObligation: Obligation = {
+  jobType: "counterparty",
+  policyPreset: "balanced",
   task: "Fetch a current, signed wallet risk assessment and return a confidence score.",
   subject: "0x0000000000000000000000000000000000000001",
   maxPriceUsdc: 0.03,
@@ -19,6 +23,25 @@ export const defaultObligation: Obligation = {
   requiredFields: ["risk", "confidence", "observedAt"],
   requireSignature: true,
 };
+
+export function buildObligation(input: CreateExecutionInput = {}): Obligation {
+  const selectedPolicy = input.policyPreset && input.policyPreset !== "custom"
+    ? POLICY_PRESETS[input.policyPreset]
+    : null;
+
+  return {
+    ...defaultObligation,
+    ...(input.jobType ? { jobType: input.jobType } : {}),
+    ...(input.policyPreset ? { policyPreset: input.policyPreset } : {}),
+    ...(input.task ? { task: input.task } : {}),
+    ...(input.subject ? { subject: input.subject } : {}),
+    maxPriceUsdc: input.maxPriceUsdc ?? selectedPolicy?.maxPriceUsdc ?? defaultObligation.maxPriceUsdc,
+    maxLatencyMs: input.maxLatencyMs ?? selectedPolicy?.maxLatencyMs ?? defaultObligation.maxLatencyMs,
+    maxAgeSeconds: input.maxAgeSeconds ?? selectedPolicy?.maxAgeSeconds ?? defaultObligation.maxAgeSeconds,
+    requiredFields: input.requiredFields ?? selectedPolicy?.requiredFields ?? defaultObligation.requiredFields,
+    requireSignature: input.requireSignature ?? selectedPolicy?.requireSignature ?? defaultObligation.requireSignature,
+  };
+}
 
 function event(
   sequence: number,
@@ -30,25 +53,21 @@ function event(
 export async function executeJob(
   input: CreateExecutionInput = {},
   providers: ServiceProvider[] = localProviders,
-  options: { origin?: string; agentWallet?: { id: string; address: string } } = {},
+  options: {
+    origin?: string;
+    owner?: string;
+    agentWallet?: { id: string; address: string };
+    allowProtocolFunding?: boolean;
+  } = {},
 ): Promise<Execution> {
   const executionId = `run_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
-  const obligation: Obligation = {
-    ...defaultObligation,
-    ...(input.task ? { task: input.task } : {}),
-    ...(input.subject ? { subject: input.subject } : {}),
-    ...(input.maxPriceUsdc ? { maxPriceUsdc: input.maxPriceUsdc } : {}),
-    ...(input.maxLatencyMs ? { maxLatencyMs: input.maxLatencyMs } : {}),
-    ...(input.maxAgeSeconds ? { maxAgeSeconds: input.maxAgeSeconds } : {}),
-    ...(input.requiredFields ? { requiredFields: input.requiredFields } : {}),
-    ...(input.requireSignature !== undefined ? { requireSignature: input.requireSignature } : {}),
-  };
+  const obligation = buildObligation(input);
   const activeProviders = options.origin && providers === localProviders
     ? [
         {
           id: "arc-baseline",
           name: "Arc Baseline",
-          priceUsdc: 0.018,
+          priceUsdc: 0.008,
           reputation: 78,
           proofSupport: false,
           endpoint: "/api/providers/arc-baseline/report",
@@ -62,6 +81,15 @@ export async function executeJob(
           proofSupport: true,
           endpoint: "/api/providers/arc-sentinel/report",
           request: async () => (await import("./arc-risk")).createArcRiskDelivery(obligation.subject, obligation.task),
+        },
+        {
+          id: "arc-veritas",
+          name: "Arc Veritas",
+          priceUsdc: 0.045,
+          reputation: 99,
+          proofSupport: true,
+          endpoint: "/api/providers/arc-veritas/report",
+          request: async () => (await import("./arc-risk")).createArcDeepRiskDelivery(obligation.subject, obligation.task),
         },
       ] satisfies ServiceProvider[]
     : providers;
@@ -146,15 +174,18 @@ export async function executeJob(
       }),
     );
 
-    const canSettleLive = provider.id === "arc-sentinel"
+    const canSettleLive = provider.id !== "arc-baseline"
       && Boolean(options.origin)
-      && Boolean(options.agentWallet || process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x"))
+      && Boolean(options.agentWallet || (
+        options.allowProtocolFunding
+        && process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x")
+      ))
       && Boolean(process.env.X402_SELLER_ADDRESS);
 
     if (canSettleLive) {
       try {
         const { payForResource, payForResourceWithCircleAgent } = await import("../x402/client");
-        const settlementUrl = `${options.origin}/api/providers/arc-sentinel/settle`;
+        const settlementUrl = `${options.origin}/api/providers/${provider.id}/settle`;
         const settlementBody = {
           executionId,
           evidenceHash: delivery.evidenceHash,
@@ -183,11 +214,27 @@ export async function executeJob(
           amountUsdc: provider.priceUsdc,
         }));
 
+        const attestation = await attestEvidence(executionId, delivery.evidenceHash);
+        events.push(event(events.length, {
+          kind: "settlement",
+          status: attestation.status === "confirmed" ? "success" : "failure",
+          title: attestation.status === "confirmed"
+            ? "Evidence anchored on Arc"
+            : "Evidence anchor unavailable",
+          detail: attestation.status === "confirmed"
+            ? "The accepted evidence hash is now an active KNOT hook attestation for ERC-8183 completion."
+            : attestation.status === "failed"
+              ? "The x402 payment was received, but the onchain hook attestation failed and is reported separately."
+              : "The x402 payment was received without an onchain attester configured.",
+          providerId: provider.id,
+        }));
+
         return executionSchema.parse({
           id: executionId,
           createdAt: new Date().toISOString(),
           mode: "live",
           status: "verified",
+          owner: options.owner ?? null,
           obligation,
           events,
           attempts,
@@ -198,6 +245,7 @@ export async function executeJob(
             rail: "x402-gateway",
             evidenceHash: delivery.evidenceHash,
             transactionHash: paid.transactionHash,
+            attestation,
           },
         });
       } catch (cause) {
@@ -216,6 +264,7 @@ export async function executeJob(
           createdAt: new Date().toISOString(),
           mode: "live",
           status: "failed",
+          owner: options.owner ?? null,
           obligation,
           events,
           attempts,
@@ -245,6 +294,7 @@ export async function executeJob(
       createdAt: new Date().toISOString(),
       mode: "local",
       status: "verified",
+      owner: options.owner ?? null,
       obligation,
       events,
       attempts,
@@ -273,6 +323,7 @@ export async function executeJob(
     createdAt: new Date().toISOString(),
     mode: "local",
     status: "failed",
+    owner: options.owner ?? null,
     obligation,
     events,
     attempts,

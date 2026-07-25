@@ -11,7 +11,8 @@ describe("agent authorization", () => {
 
     expect(message).toContain(owner.toLowerCase());
     expect(message).toContain(issuedAt);
-    expect(message).toContain("Provision or access my KNOT agent wallet");
+    expect(message).toContain("Access my personal agent wallet");
+    expect(message).toContain("Up to 0.050 USDC per execution");
   });
 
   it("accepts only the five-minute authorization window", () => {

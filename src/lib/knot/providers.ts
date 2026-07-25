@@ -39,28 +39,28 @@ function makeDelivery(
 
 export const localProviders: ServiceProvider[] = [
   {
-    id: "signal-forge",
-    name: "Signal Forge",
-    priceUsdc: 0.018,
-    reputation: 71,
-    proofSupport: true,
-    endpoint: "/api/providers/signal-forge",
+    id: "arc-baseline",
+    name: "Arc Baseline",
+    priceUsdc: 0.008,
+    reputation: 78,
+    proofSupport: false,
+    endpoint: "/api/providers/arc-baseline/report",
     async request() {
       return makeDelivery(this, {
         latencyMs: 482,
         ageSeconds: 410,
-        signatureValid: true,
+        signatureValid: false,
         payload: { risk: "low", observedAt: "stale" },
       });
     },
   },
   {
-    id: "northstar-data",
-    name: "Northstar Data",
+    id: "arc-sentinel",
+    name: "Arc Sentinel",
     priceUsdc: 0.024,
-    reputation: 94,
+    reputation: 96,
     proofSupport: true,
-    endpoint: "/api/providers/northstar-data",
+    endpoint: "/api/providers/arc-sentinel/report",
     async request() {
       return makeDelivery(this, {
         latencyMs: 731,

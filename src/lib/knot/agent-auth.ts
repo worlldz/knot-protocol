@@ -7,10 +7,13 @@ export function isAgentAuthorizationFresh(issuedAt: string, now = Date.now()) {
 
 export function createAgentAuthorizationMessage(owner: string, issuedAt: string) {
   return [
-    "KNOT Agent Wallet Authorization",
+    "KNOT Agent Session Authorization",
     "",
     `Owner: ${owner.toLowerCase()}`,
     `Issued At: ${issuedAt}`,
-    "Action: Provision or access my KNOT agent wallet on Arc Testnet.",
+    "Network: Arc Testnet (5042002)",
+    "Scope: Access my personal agent wallet for verified KNOT executions.",
+    "Limit: Up to 0.050 USDC per execution.",
+    "Expiry: Five minutes after issuance.",
   ].join("\n");
 }

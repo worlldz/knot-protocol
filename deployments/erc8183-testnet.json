@@ -1,0 +1,16 @@
+{
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "status": "Completed",
+  "jobId": "1",
+  "executionId": "run_d83ad375d77a",
+  "budgetUsdc": "0.024",
+  "evidenceHash": "0x7e758fd3a8f4cfb74a4a1e708bec80694fa37553b09e768dcf11eaf85e88c016",
+  "commerce": "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f",
+  "hook": "0x73b00398580ba7a19ffb7a5677cf3970e15918d5",
+  "attestationTransaction": "0xa61b706111781ce3d9b26f1dc7012dedcb1a33b4cd6b2b63046aff223c0542b2",
+  "completionTransaction": "0x97b6e863f1308fc11d2484495f9742be54e5f721ceaed55820e864b2b0a30f8d",
+  "attestationExplorerUrl": "https://testnet.arcscan.app/tx/0xa61b706111781ce3d9b26f1dc7012dedcb1a33b4cd6b2b63046aff223c0542b2",
+  "completionExplorerUrl": "https://testnet.arcscan.app/tx/0x97b6e863f1308fc11d2484495f9742be54e5f721ceaed55820e864b2b0a30f8d",
+  "completedAt": "2026-07-24T06:18:00.000Z"
+}

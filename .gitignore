@@ -21,6 +21,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -32,11 +33,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .dev-server*.log
+.knot-dev*.log
+.knot-prod-*.log
+.win-dev.log
 
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
 /recovery/
+/.knot-data/
 
 # vercel
 .vercel

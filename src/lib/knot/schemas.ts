@@ -1,6 +1,22 @@
 import { z } from "zod";
 
+export const jobTypeSchema = z.enum([
+  "counterparty",
+  "treasury",
+  "agent-spend",
+  "contract-review",
+]);
+
+export const policyPresetSchema = z.enum([
+  "economy",
+  "balanced",
+  "strict",
+  "custom",
+]);
+
 export const obligationSchema = z.object({
+  jobType: jobTypeSchema.default("counterparty"),
+  policyPreset: policyPresetSchema.default("balanced"),
   task: z.string().trim().min(12).max(280),
   subject: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   maxPriceUsdc: z.number().positive().max(1),
@@ -67,6 +83,7 @@ export const executionSchema = z.object({
   createdAt: z.string(),
   mode: z.enum(["local", "live"]),
   status: z.enum(["verified", "failed"]),
+  owner: z.string().nullable().default(null),
   obligation: obligationSchema,
   events: z.array(executionEventSchema),
   attempts: z.array(providerAttemptSchema),
@@ -77,10 +94,27 @@ export const executionSchema = z.object({
     rail: z.enum(["simulated", "x402-gateway", "erc-8183"]),
     evidenceHash: z.string().nullable(),
     transactionHash: z.string().nullable(),
+    attestation: z.object({
+      status: z.enum(["not-requested", "confirmed", "failed"]),
+      jobId: z.string().nullable(),
+      hookAddress: z.string().nullable(),
+      transactionHash: z.string().nullable(),
+      validUntil: z.string().nullable(),
+      error: z.string().nullable(),
+    }).default({
+      status: "not-requested",
+      jobId: null,
+      hookAddress: null,
+      transactionHash: null,
+      validUntil: null,
+      error: null,
+    }),
   }),
 });
 
 export const createExecutionSchema = z.object({
+  jobType: jobTypeSchema.optional(),
+  policyPreset: policyPresetSchema.optional(),
   task: z.string().trim().min(12).max(280).optional(),
   subject: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
   maxPriceUsdc: z.number().positive().max(1).optional(),
@@ -103,3 +137,5 @@ export type ExecutionEvent = z.infer<typeof executionEventSchema>;
 export type ProviderAttempt = z.infer<typeof providerAttemptSchema>;
 export type Execution = z.infer<typeof executionSchema>;
 export type CreateExecutionInput = z.infer<typeof createExecutionSchema>;
+export type JobType = z.infer<typeof jobTypeSchema>;
+export type PolicyPreset = z.infer<typeof policyPresetSchema>;

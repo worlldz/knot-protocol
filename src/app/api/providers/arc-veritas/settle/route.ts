@@ -1,0 +1,44 @@
+import { withX402 } from "@x402/next";
+import { NextResponse, type NextRequest } from "next/server";
+import { isAddress } from "viem";
+import { z } from "zod";
+import { ARC_TESTNET_CAIP, createCircleResourceServer } from "@/lib/x402/server";
+
+export const runtime = "nodejs";
+
+const requestSchema = z.object({
+  executionId: z.string().min(1),
+  evidenceHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+  subject: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+});
+
+async function settleHandler(request: NextRequest): Promise<NextResponse<unknown>> {
+  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid settlement request" }, { status: 400 });
+  }
+
+  return NextResponse.json({
+    provider: "Arc Veritas",
+    service: "Code-aware Arc counterparty evidence",
+    ...parsed.data,
+    deliveredAt: new Date().toISOString(),
+  });
+}
+
+const sellerAddress = process.env.X402_SELLER_ADDRESS;
+
+export const POST = sellerAddress && isAddress(sellerAddress)
+  ? withX402(settleHandler, {
+      accepts: {
+        scheme: "exact",
+        payTo: sellerAddress,
+        price: "$0.045",
+        network: ARC_TESTNET_CAIP,
+      },
+      description: "Settle verified Arc Veritas code-aware evidence",
+      mimeType: "application/json",
+      serviceName: "Arc Veritas via KNOT",
+      tags: ["wallet-risk", "contract-risk", "signed-evidence", "Arc", "USDC"],
+    }, createCircleResourceServer())
+  : settleHandler;
