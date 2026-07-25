@@ -3,15 +3,21 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { executeJob } from "./engine";
-import { getExecution, saveExecution } from "./store";
+import { getDataFile, getExecution, saveExecution } from "./store";
 
 const originalDataFile = process.env.KNOT_DATA_FILE;
+const originalVercel = process.env.VERCEL;
 
 afterEach(() => {
   if (originalDataFile === undefined) {
     delete process.env.KNOT_DATA_FILE;
   } else {
     process.env.KNOT_DATA_FILE = originalDataFile;
+  }
+  if (originalVercel === undefined) {
+    delete process.env.VERCEL;
+  } else {
+    process.env.VERCEL = originalVercel;
   }
 });
 
@@ -32,5 +38,12 @@ describe("execution store", () => {
     );
 
     await expect(getExecution(second.id)).resolves.toMatchObject({ id: second.id });
+  });
+
+  it("uses tmp storage on Vercel's read-only deployment filesystem", () => {
+    delete process.env.KNOT_DATA_FILE;
+    process.env.VERCEL = "1";
+
+    expect(getDataFile()).toBe(join(tmpdir(), "knot-data", "executions.json"));
   });
 });

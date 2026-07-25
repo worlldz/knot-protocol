@@ -1,4 +1,6 @@
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { cleanEnvValue } from "../server-env";
 import type { Execution } from "./schemas";
 import { executionSchema } from "./schemas";
 
@@ -9,8 +11,11 @@ type ExecutionStore = {
 
 const defaultDataFile = join(".knot-data", "executions.json");
 
-function getDataFile() {
-  return process.env.KNOT_DATA_FILE || defaultDataFile;
+export function getDataFile() {
+  const configured = cleanEnvValue(process.env.KNOT_DATA_FILE);
+  if (configured) return configured;
+  if (process.env.VERCEL) return join(tmpdir(), "knot-data", "executions.json");
+  return defaultDataFile;
 }
 
 async function loadStore() {
