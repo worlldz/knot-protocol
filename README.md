@@ -27,6 +27,7 @@ With x402, an agent can pay an HTTP service in one request. That payment proves 
 - Economy, Balanced, Strict, and Custom policy presets with visibly different provider routing.
 - Preflight quote API that predicts provider route, max spend, and fallback reasons before execution.
 - Agent discovery and OpenAPI endpoints for machine-readable integration.
+- Judge-ready submission brief at `/api/submission`.
 - Sites-compatible public worker export for a lightweight hosted KNOT surface.
 - Server-side execution API with request validation, spend limits, and rate limits.
 - Durable file-backed receipts with explicit receipt lookup instead of public global history.
@@ -97,6 +98,7 @@ Useful routes:
 | `/` | KNOT product console |
 | `/.well-known/knot` | Agent discovery document for capabilities, auth boundaries, and integration URLs |
 | `/api/openapi` | OpenAPI 3.1 contract for quote, execute, receipt, and status calls |
+| `/api/submission` | Judge-ready problem, solution, demo flow, users, and live proof brief |
 | `/receipt/:id` | Shareable execution receipt |
 | `POST /api/quote` | Preflight provider route, max spend, and policy blockers without storing a receipt |
 | `POST /api/executions` | Run preview or live agent execution |
@@ -153,7 +155,7 @@ if (execution.status !== "verified") {
 console.log(execution.settlement.evidenceHash);
 ```
 
-The public manifest is available at `/api/manifest` and returns the same policy presets, job templates, contract addresses, endpoint metadata, and sample request shape used by the app. Agent runtimes can start from `/.well-known/knot`, then load `/api/openapi` for the full request contract.
+The public manifest is available at `/api/manifest` and returns the same policy presets, job templates, contract addresses, endpoint metadata, and sample request shape used by the app. Agent runtimes can start from `/.well-known/knot`, then load `/api/openapi` for the full request contract. Judges can load `/api/submission` or read [`docs/hackathon-submission.md`](docs/hackathon-submission.md) for the project brief and demo flow.
 
 Receipt verifiers can call `/api/receipts/verify?id=run_...&evidenceHash=0x...` to confirm a stored receipt still points at an accepted delivery that satisfies the original obligation.
 
@@ -204,7 +206,7 @@ npm run smoke:sites
 Current verification status:
 
 - `npm run lint` passes.
-- `npm run test` passes with 33 unit tests and 10 contract tests.
+- `npm run test` passes with 34 unit tests and 10 contract tests.
 - `npm run build` passes on Next.js 16.2.11.
 - `npm audit --omit=dev` reports 0 vulnerabilities.
 - `npm run smoke:local` verifies quote, execution, receipt page, and receipt-binding checks for Economy, Balanced, and Strict routes against a running KNOT server.

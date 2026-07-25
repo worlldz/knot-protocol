@@ -409,6 +409,7 @@ function manifest(baseUrl) {
     endpoints: {
       discovery: { method: "GET", path: "/.well-known/knot", url: absolute(baseUrl, "/.well-known/knot"), auth: "Public agent discovery document." },
       openapi: { method: "GET", path: "/api/openapi", url: absolute(baseUrl, "/api/openapi"), auth: "Public OpenAPI 3.1 integration contract." },
+      submission: { method: "GET", path: "/api/submission", url: absolute(baseUrl, "/api/submission"), auth: "Public judge and launch brief. Does not expose secrets." },
       quoteExecution: { method: "POST", path: "/api/quote", url: absolute(baseUrl, "/api/quote"), auth: "Public preflight. Does not execute work, store receipts, or spend funds." },
       runExecution: { method: "POST", path: "/api/executions", url: absolute(baseUrl, "/api/executions"), auth: "Preview execution is public in the worker export. Protocol-funded execution belongs to the full Next deployment." },
       listExecutions: { method: "GET", path: "/api/executions?ids=run_...", url: absolute(baseUrl, "/api/executions?ids=run_..."), auth: "Public by explicit receipt IDs." },
@@ -443,6 +444,7 @@ function discovery(baseUrl) {
       "receipt-verification",
       "arc-testnet-proof-links",
       "erc-8183-style-completion-hooks",
+      "judge-ready-submission-brief",
     ],
     chain: currentManifest.chain,
     contracts: currentManifest.contracts,
@@ -454,6 +456,7 @@ function discovery(baseUrl) {
       status: absolute(baseUrl, "/api/system/status"),
       manifest: absolute(baseUrl, "/api/manifest"),
       openapi: absolute(baseUrl, "/api/openapi"),
+      submission: absolute(baseUrl, "/api/submission"),
     },
     auth: {
       quote: "none",
@@ -478,6 +481,7 @@ function openApi(baseUrl) {
       "/.well-known/knot": { get: { summary: "Discover KNOT capabilities." } },
       "/api/manifest": { get: { summary: "Read KNOT jobs, policies, endpoints, and deployment proof." } },
       "/api/openapi": { get: { summary: "Read the OpenAPI document." } },
+      "/api/submission": { get: { summary: "Read a judge-ready project brief and launch evidence checklist." } },
       "/api/quote": { post: { summary: "Preflight provider route and max spend before execution." } },
       "/api/executions": { post: { summary: "Create a preview execution receipt." }, get: { summary: "Read selected receipts by IDs." } },
       "/api/executions/{id}": { get: { summary: "Read one receipt." } },
@@ -520,6 +524,71 @@ function status(baseUrl) {
       openapi: absolute(baseUrl, "/api/openapi"),
       manifest: absolute(baseUrl, "/api/manifest"),
     },
+  };
+}
+
+function submission(baseUrl) {
+  const currentManifest = manifest(baseUrl);
+  return {
+    name: "KNOT",
+    tagline: "Pay for verified outcomes, not unproven responses.",
+    oneLiner: "KNOT is a verification-native settlement layer for autonomous agent work on Arc.",
+    problem: [
+      "Agent payments are becoming easy, but agent accountability is still thin.",
+      "x402 can prove a payment happened, but not that the paid service delivered fresh, signed, policy-valid evidence.",
+      "Autonomous agents need a clearing layer that can reject weak work before money or onchain completion moves.",
+    ],
+    solution: [
+      "Compile each buyer request into a measurable obligation.",
+      "Preflight provider route and max spend before execution.",
+      "Run providers through deterministic evidence checks.",
+      "Fallback automatically when cheaper evidence fails.",
+      "Bind accepted evidence to a durable receipt, x402 settlement, and ERC-8183-style completion hook.",
+    ],
+    users: [
+      "Treasury agents that need proof before releasing USDC.",
+      "Agent wallets that need counterparty checks before sending value.",
+      "API providers that want to sell machine-readable evidence instead of prose answers.",
+      "Protocols that need an evidence hash before allowing a job to complete onchain.",
+    ],
+    liveProof: {
+      chain: currentManifest.chain,
+      commerce: currentManifest.contracts.commerce,
+      hook: currentManifest.contracts.hook,
+      latestProof: currentManifest.latestProof,
+    },
+    workingSurface: {
+      console: absolute(baseUrl, "/"),
+      discovery: absolute(baseUrl, "/.well-known/knot"),
+      openapi: absolute(baseUrl, "/api/openapi"),
+      manifest: absolute(baseUrl, "/api/manifest"),
+      quote: absolute(baseUrl, "/api/quote"),
+      execute: absolute(baseUrl, "/api/executions"),
+      verifyReceipt: absolute(baseUrl, "/api/receipts/verify?id=run_...&evidenceHash=0x..."),
+      status: absolute(baseUrl, "/api/system/status"),
+    },
+    demoFlow: [
+      "Open the console and run Judge Mode.",
+      "Economy accepts Arc Baseline in one attempt at 0.008 USDC.",
+      "Balanced rejects Baseline and accepts Arc Sentinel at 0.024 USDC.",
+      "Strict rejects Baseline and Sentinel, then accepts Arc Veritas at 0.045 USDC.",
+      "Open the generated receipt and verify its evidence hash.",
+      "Inspect the Arc Testnet commerce contract, hook, attestation transaction, and completed job.",
+    ],
+    judgeChecklist: [
+      "Different policies produce different provider routes.",
+      "Bad evidence is rejected before settlement.",
+      "Receipts are explicit-id, machine-readable, and verifiable.",
+      "Arc Testnet contracts are deployed and source verified.",
+      "OpenAPI and discovery endpoints let external agents integrate without reading the UI.",
+      "The public worker export can run quote, preview execution, receipt lookup, and verification.",
+    ],
+    whyNow: [
+      "Autonomous commerce needs trust boundaries before agents can safely spend at scale.",
+      "Arc gives the stablecoin-native settlement rail.",
+      "x402 gives HTTP-native payment negotiation.",
+      "KNOT adds the missing proof and clearing layer between request, payment, and onchain completion.",
+    ],
   };
 }
 
@@ -653,6 +722,7 @@ async function handle(request) {
   if (request.method === "GET" && url.pathname === "/.well-known/knot") return json(discovery(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/openapi") return json(openApi(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/manifest") return json(manifest(baseUrl));
+  if (request.method === "GET" && url.pathname === "/api/submission") return json(submission(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/system/status") return json(status(baseUrl));
   if (request.method === "GET" && url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /\nSitemap: " + absolute(baseUrl, "/sitemap.xml") + "\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
   if (request.method === "GET" && url.pathname === "/sitemap.xml") return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${baseUrl}/</loc></url><url><loc>${baseUrl}/.well-known/knot</loc></url><url><loc>${baseUrl}/api/openapi</loc></url></urlset>`, { headers: { "content-type": "application/xml; charset=utf-8" } });

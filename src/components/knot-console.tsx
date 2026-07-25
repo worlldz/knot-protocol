@@ -1197,11 +1197,12 @@ function ExploreView() {
         <div className="developer-copy">
           <span>DEVELOPER SURFACE</span>
           <h2>Wire KNOT into an agent in minutes.</h2>
-          <p>The app exposes agent discovery, OpenAPI, preflight quotes, typed receipt reads, and a protected execution path for server-side agents.</p>
+          <p>The app exposes agent discovery, OpenAPI, a judge-ready brief, preflight quotes, typed receipt reads, and a protected execution path for server-side agents.</p>
         </div>
         <div className="developer-card">
           <div><span>GET</span><code>/.well-known/knot</code><small>Agent discovery with capabilities, auth boundaries, and recommended flow.</small></div>
           <div><span>GET</span><code>/api/openapi</code><small>OpenAPI 3.1 contract for quote, execute, receipt, and status calls.</small></div>
+          <div><span>GET</span><code>/api/submission</code><small>Judge-ready project brief with problem, demo flow, users, and live proof.</small></div>
           <div><span>POST</span><code>/api/quote</code><small>Preflight route, max spend, and provider fallback reasons before execution.</small></div>
           <div><span>POST</span><code>/api/executions</code><small>Run an obligation and receive a signed settlement receipt.</small></div>
           <div><span>GET</span><code>/api/manifest</code><small>Read jobs, policies, contracts, examples, and endpoint metadata.</small></div>
@@ -1224,6 +1225,7 @@ const receipt = await knot.run({
         <div className="developer-actions">
           <a href="/.well-known/knot" target="_blank" rel="noreferrer">Agent discovery <ExternalIcon /></a>
           <a href="/api/openapi" target="_blank" rel="noreferrer">OpenAPI <ExternalIcon /></a>
+          <a href="/api/submission" target="_blank" rel="noreferrer">Submission brief <ExternalIcon /></a>
           <a href="/api/manifest" target="_blank" rel="noreferrer">Open manifest <ExternalIcon /></a>
           <a href="/api/system/status" target="_blank" rel="noreferrer">Check status <ExternalIcon /></a>
         </div>

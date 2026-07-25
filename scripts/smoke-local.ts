@@ -103,6 +103,14 @@ async function main() {
     "openapi endpoint is missing KNOT quote or receipt paths",
   );
 
+  const submission = await readJson<JsonObject>("/api/submission");
+  assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission brief tagline mismatch");
+  assert(
+    Array.isArray(submission.judgeChecklist)
+      && submission.judgeChecklist.some((item) => typeof item === "string" && item.includes("Different policies")),
+    "submission brief is missing judge checklist evidence",
+  );
+
   const status = await readJson<JsonObject>("/api/system/status");
   assert(status.environment === "Arc Testnet", "status endpoint is not reporting Arc Testnet");
   assert(status.deployment && typeof status.deployment === "object", "status endpoint is missing deployment proof");

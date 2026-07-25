@@ -24,6 +24,11 @@ describe("GET /api/openapi", () => {
             tags: ["Preflight"],
           },
         },
+        "/api/submission": {
+          get: {
+            tags: ["Discovery"],
+          },
+        },
         "/api/executions": {
           post: {
             security: [{ bearerAuth: [] }, {}],

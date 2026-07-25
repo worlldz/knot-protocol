@@ -33,6 +33,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       "arc-testnet-settlement",
       "x402-provider-settlement",
       "erc-8183-style-completion-hooks",
+      "judge-ready-submission-brief",
     ],
     chain: manifest.chain,
     contracts: manifest.contracts,
@@ -44,6 +45,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       status: manifest.endpoints.systemStatus.url,
       manifest: manifest.endpoints.manifest.url,
       openapi: absoluteUrl(baseUrl, "/api/openapi"),
+      submission: absoluteUrl(baseUrl, "/api/submission"),
     },
     auth: {
       quote: "none",
@@ -113,6 +115,18 @@ export function createKnotOpenApi(options: DiscoveryOptions = {}) {
           responses: {
             "200": {
               description: "OpenAPI document",
+              content: { "application/json": { schema: { type: "object" } } },
+            },
+          },
+        },
+      },
+      "/api/submission": {
+        get: {
+          tags: ["Discovery"],
+          summary: "Read a judge-ready project brief and launch evidence checklist.",
+          responses: {
+            "200": {
+              description: "KNOT submission brief",
               content: { "application/json": { schema: { type: "object" } } },
             },
           },

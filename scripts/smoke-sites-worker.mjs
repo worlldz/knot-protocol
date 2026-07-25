@@ -20,6 +20,11 @@ async function main() {
   const openapi = await readJson("/api/openapi");
   assert(openapi.openapi === "3.1.0", "openapi version mismatch");
   assert(openapi.paths["/api/quote"], "openapi missing quote path");
+  assert(openapi.paths["/api/submission"], "openapi missing submission path");
+
+  const submission = await readJson("/api/submission");
+  assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission tagline mismatch");
+  assert(submission.judgeChecklist.includes("Different policies produce different provider routes."), "submission checklist mismatch");
 
   const subject = "0x0000000000000000000000000000000000000001";
   const executionInput = {
@@ -53,6 +58,7 @@ async function main() {
 
   console.log(JSON.stringify({
     discovery: discovery.protocol,
+    submission: submission.name,
     quote: quote.recommendedProvider.name,
     execution: execution.id,
     verification: verification.status,

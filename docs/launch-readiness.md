@@ -91,6 +91,8 @@ The hosted environment should define:
 
 `/.well-known/knot` and `/api/openapi` should be reachable before judging. These are the machine-readable entry points an external agent would use to discover KNOT, quote a route, execute an obligation, and verify the resulting receipt.
 
+`/api/submission` should also be reachable. It is the judge-facing project brief with problem framing, target users, demo flow, live proof links, and the checklist of what is actually working.
+
 Receipt verification should also work:
 
 ```bash

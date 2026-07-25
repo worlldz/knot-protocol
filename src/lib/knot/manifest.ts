@@ -58,6 +58,12 @@ export function createKnotManifest(options: ManifestOptions = {}) {
         url: absoluteUrl(baseUrl, "/api/openapi"),
         auth: "Public OpenAPI 3.1 integration contract.",
       },
+      submission: {
+        method: "GET",
+        path: "/api/submission",
+        url: absoluteUrl(baseUrl, "/api/submission"),
+        auth: "Public judge and launch brief. Does not expose secrets.",
+      },
       quoteExecution: {
         method: "POST",
         path: "/api/quote",
