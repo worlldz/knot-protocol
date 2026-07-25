@@ -4,12 +4,20 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").re
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  return [
-    {
-      url: siteUrl,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
+  const publicRoutes: Array<[path: string, priority: number]> = [
+    ["", 1],
+    ["/.well-known/knot", 0.72],
+    ["/api/openapi", 0.7],
+    ["/api/manifest", 0.7],
+    ["/api/submission", 0.82],
+    ["/api/launch", 0.82],
+    ["/api/system/status", 0.62],
   ];
+
+  return publicRoutes.map(([path, priority]) => ({
+    url: `${siteUrl}${path}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority,
+  }));
 }

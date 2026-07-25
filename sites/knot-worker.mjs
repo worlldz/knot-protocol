@@ -410,6 +410,7 @@ function manifest(baseUrl) {
       discovery: { method: "GET", path: "/.well-known/knot", url: absolute(baseUrl, "/.well-known/knot"), auth: "Public agent discovery document." },
       openapi: { method: "GET", path: "/api/openapi", url: absolute(baseUrl, "/api/openapi"), auth: "Public OpenAPI 3.1 integration contract." },
       submission: { method: "GET", path: "/api/submission", url: absolute(baseUrl, "/api/submission"), auth: "Public judge and launch brief. Does not expose secrets." },
+      launch: { method: "GET", path: "/api/launch", url: absolute(baseUrl, "/api/launch"), auth: "Public launch, domain, utility, and go-to-market kit. Does not expose secrets." },
       quoteExecution: { method: "POST", path: "/api/quote", url: absolute(baseUrl, "/api/quote"), auth: "Public preflight. Does not execute work, store receipts, or spend funds." },
       runExecution: { method: "POST", path: "/api/executions", url: absolute(baseUrl, "/api/executions"), auth: "Preview execution is public in the worker export. Protocol-funded execution belongs to the full Next deployment." },
       listExecutions: { method: "GET", path: "/api/executions?ids=run_...", url: absolute(baseUrl, "/api/executions?ids=run_..."), auth: "Public by explicit receipt IDs." },
@@ -445,6 +446,7 @@ function discovery(baseUrl) {
       "arc-testnet-proof-links",
       "erc-8183-style-completion-hooks",
       "judge-ready-submission-brief",
+      "launch-readiness-kit",
     ],
     chain: currentManifest.chain,
     contracts: currentManifest.contracts,
@@ -457,6 +459,7 @@ function discovery(baseUrl) {
       manifest: absolute(baseUrl, "/api/manifest"),
       openapi: absolute(baseUrl, "/api/openapi"),
       submission: absolute(baseUrl, "/api/submission"),
+      launch: absolute(baseUrl, "/api/launch"),
     },
     auth: {
       quote: "none",
@@ -464,7 +467,7 @@ function discovery(baseUrl) {
       receiptRead: "receipt id",
       receiptVerification: "receipt id with optional evidence hash",
     },
-    recommendedFlow: ["GET /.well-known/knot", "POST /api/quote", "POST /api/executions", "GET /api/executions/{id}", "GET /api/receipts/verify?id={id}&evidenceHash={hash}"],
+    recommendedFlow: ["GET /.well-known/knot", "POST /api/quote", "POST /api/executions", "GET /api/executions/{id}", "GET /api/receipts/verify?id={id}&evidenceHash={hash}", "GET /api/launch"],
   };
 }
 
@@ -482,6 +485,7 @@ function openApi(baseUrl) {
       "/api/manifest": { get: { summary: "Read KNOT jobs, policies, endpoints, and deployment proof." } },
       "/api/openapi": { get: { summary: "Read the OpenAPI document." } },
       "/api/submission": { get: { summary: "Read a judge-ready project brief and launch evidence checklist." } },
+      "/api/launch": { get: { summary: "Read KNOT's launch, domain, utility, and go-to-market kit." } },
       "/api/quote": { post: { summary: "Preflight provider route and max spend before execution." } },
       "/api/executions": { post: { summary: "Create a preview execution receipt." }, get: { summary: "Read selected receipts by IDs." } },
       "/api/executions/{id}": { get: { summary: "Read one receipt." } },
@@ -562,6 +566,7 @@ function submission(baseUrl) {
       discovery: absolute(baseUrl, "/.well-known/knot"),
       openapi: absolute(baseUrl, "/api/openapi"),
       manifest: absolute(baseUrl, "/api/manifest"),
+      launch: absolute(baseUrl, "/api/launch"),
       quote: absolute(baseUrl, "/api/quote"),
       execute: absolute(baseUrl, "/api/executions"),
       verifyReceipt: absolute(baseUrl, "/api/receipts/verify?id=run_...&evidenceHash=0x..."),
@@ -581,6 +586,7 @@ function submission(baseUrl) {
       "Receipts are explicit-id, machine-readable, and verifiable.",
       "Arc Testnet contracts are deployed and source verified.",
       "OpenAPI and discovery endpoints let external agents integrate without reading the UI.",
+      "The launch kit explains domain readiness, utility, revenue paths, and TGE guardrails.",
       "The public worker export can run quote, preview execution, receipt lookup, and verification.",
     ],
     whyNow: [
@@ -588,6 +594,89 @@ function submission(baseUrl) {
       "Arc gives the stablecoin-native settlement rail.",
       "x402 gives HTTP-native payment negotiation.",
       "KNOT adds the missing proof and clearing layer between request, payment, and onchain completion.",
+    ],
+  };
+}
+
+function launchKit(baseUrl) {
+  const currentManifest = manifest(baseUrl);
+  return {
+    name: "KNOT",
+    status: "testnet-ready",
+    headline: "A clearing layer for autonomous commerce where agents pay only for verified outcomes.",
+    whyCreated: [
+      "Machine payments can move faster than human review.",
+      "A payment receipt alone does not prove the paid service delivered current, signed, policy-valid work.",
+      "KNOT creates a verification boundary before autonomous agents spend USDC or complete an onchain job.",
+    ],
+    product: {
+      category: "verification-native settlement",
+      chain: currentManifest.chain,
+      primaryUser: "autonomous buyer agents that need proof before spending value",
+      promise: "turn a buyer intent into measurable obligations, reject weak evidence, and settle only the accepted result",
+    },
+    domainReadiness: {
+      currentHost: baseUrl || "local-development",
+      customDomainReady: true,
+      canonicalDomainConfigured: false,
+      recommendedHostnames: ["knot.market", "knotprotocol.xyz", "useknot.xyz"],
+      nextAction: "Attach a purchased hostname through Sites custom domain and publish the same validated source under that brand.",
+      note: "The product is host-agnostic. A preview host is not part of the KNOT brand.",
+    },
+    utility: [
+      "Buyer agents can preflight provider route, expected spend, and fallback reasons before execution.",
+      "Treasury agents can require signed wallet evidence before releasing USDC.",
+      "Providers can sell machine-readable evidence instead of opaque prose responses.",
+      "Protocols can require an accepted evidence hash before allowing an onchain job to complete.",
+      "Auditors can verify receipts by execution ID and evidence hash without reading private global history.",
+    ],
+    launchSurfaces: {
+      console: absolute(baseUrl, "/"),
+      discovery: currentManifest.endpoints.discovery.url,
+      openapi: currentManifest.endpoints.openapi.url,
+      manifest: currentManifest.endpoints.manifest.url,
+      submission: currentManifest.endpoints.submission.url,
+      launchKit: absolute(baseUrl, "/api/launch"),
+      quote: currentManifest.endpoints.quoteExecution.url,
+      execute: currentManifest.endpoints.runExecution.url,
+      verifyReceipt: currentManifest.endpoints.verifyReceipt.url,
+      status: currentManifest.endpoints.systemStatus.url,
+    },
+    evidence: {
+      contracts: currentManifest.contracts,
+      latestProof: currentManifest.latestProof,
+      proofChecklist: [
+        "Economy, Balanced, and Strict policies choose different providers and prices.",
+        "Weak evidence is rejected before payment authorization.",
+        "Accepted evidence becomes a receipt and can be checked by hash.",
+        "The Arc Testnet commerce contract and hook are deployed and source verified.",
+        "A completed testnet job links the evidence hash to the onchain completion path.",
+      ],
+    },
+    goToMarket: {
+      beachhead: ["agent treasury operations", "wallet counterparty screening", "paid data and risk APIs", "agent-to-agent service marketplaces"],
+      wedge: "start as an evidence router for Arc-native agent payments, then become the settlement standard for paid machine work",
+      revenue: ["protocol fee on accepted settlements", "provider marketplace fees", "enterprise verifier and audit endpoints", "premium policy templates for treasury and risk teams"],
+    },
+    tgeNarrative: {
+      principle: "Any future token should coordinate verification supply, provider reputation, and protocol governance, not replace USDC settlement.",
+      nonSpeculativeUtility: ["provider reputation and challenge markets", "policy template governance", "fee routing and verifier incentives", "operator staking for evidence availability and signer quality"],
+      guardrail: "The hackathon build does not require a token to work. USDC remains the payment and settlement asset.",
+    },
+    demoScript: [
+      "Open the console.",
+      "Run Judge Mode.",
+      "Show Economy accepting Arc Baseline in one attempt.",
+      "Show Balanced falling back to Arc Sentinel.",
+      "Show Strict falling back to Arc Veritas.",
+      "Open the receipt and verify the evidence hash.",
+      "Open /.well-known/knot, /api/openapi, /api/submission, and /api/launch.",
+      "Open the Arcscan links for the deployed commerce contract, hook, attestation, and completed job.",
+    ],
+    launchGaps: [
+      "Attach a clean custom domain before public judging or investor sharing.",
+      "Move hosted preview receipts from worker memory to durable storage before a public pilot.",
+      "Configure live Circle and x402 credentials in the hosted environment for production paid execution.",
     ],
   };
 }
@@ -601,24 +690,28 @@ function landing() {
   <title>KNOT - Verified outcome clearing</title>
   <meta name="description" content="KNOT is a verification-native settlement layer for autonomous commerce on Arc." />
   <style>
-    :root { color-scheme: dark; --bg:#06110d; --panel:#0d1d16; --ink:#f1ffee; --muted:#95a99b; --acid:#d7ff69; --mint:#7dffc3; --line:rgba(255,255,255,.13); --red:#ff7979; }
+    :root { color-scheme: dark; --bg:#06110d; --panel:#0d1d16; --ink:#f1ffee; --muted:#95a99b; --acid:#d7ff69; --mint:#7dffc3; --line:rgba(255,255,255,.13); --red:#ff7979; --blue:#95baff; }
     * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:radial-gradient(circle at 15% 0%, rgba(125,255,195,.2), transparent 32rem), radial-gradient(circle at 86% 15%, rgba(215,255,105,.16), transparent 30rem), var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
     main { width:min(1120px, calc(100% - 32px)); margin:0 auto; padding:48px 0; } nav, .hero, .grid, .panel, footer { border:1px solid var(--line); background:rgba(13,29,22,.76); backdrop-filter: blur(16px); box-shadow: 0 30px 90px rgba(0,0,0,.28); }
-    nav { display:flex; justify-content:space-between; align-items:center; gap:16px; border-radius:999px; padding:12px 16px; } nav strong { letter-spacing:.18em; } nav a, .actions a { color:var(--ink); text-decoration:none; font-size:13px; font-weight:800; }
+    nav { display:flex; justify-content:space-between; align-items:center; gap:16px; border-radius:999px; padding:12px 16px; } nav strong { letter-spacing:.18em; } nav a, .actions a, footer a { color:var(--ink); text-decoration:none; font-size:13px; font-weight:800; }
     .hero { margin-top:28px; border-radius:34px; padding:42px; display:grid; grid-template-columns:1.2fr .8fr; gap:28px; overflow:hidden; } h1 { margin:0; font-size:clamp(48px, 8vw, 112px); line-height:.86; letter-spacing:-.08em; } h1 span { display:block; color:var(--acid); } p { color:var(--muted); line-height:1.65; } .hero p { max-width:56ch; font-size:18px; }
     .proof { display:grid; gap:12px; align-content:start; } .proof div { border:1px solid var(--line); border-radius:22px; padding:18px; background:rgba(255,255,255,.04); } .proof span, .eyebrow { color:var(--mint); font-size:11px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; } .proof b { display:block; margin-top:8px; font-size:28px; }
     .grid { margin-top:18px; border-radius:28px; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:16px; } .panel { border-radius:24px; padding:22px; background:rgba(6,17,13,.62); } h2 { margin:8px 0 10px; font-size:30px; letter-spacing:-.04em; } label { display:grid; gap:8px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; } input, select, button { width:100%; border:1px solid var(--line); border-radius:14px; background:#081611; color:var(--ink); padding:13px 14px; font:inherit; } button { margin-top:12px; background:var(--acid); color:#09120e; border:0; font-weight:900; cursor:pointer; }
     pre { white-space:pre-wrap; word-break:break-word; border:1px solid var(--line); border-radius:18px; background:#07130f; padding:16px; color:#c8ffd9; min-height:160px; } .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; } .actions a { border:1px solid var(--line); border-radius:999px; padding:10px 13px; background:rgba(255,255,255,.04); }
+    .launch-room { margin-top:18px; border:1px solid var(--line); border-radius:30px; padding:22px; background:linear-gradient(135deg, rgba(215,255,105,.1), rgba(13,29,22,.8) 42%, rgba(149,186,255,.09)); display:grid; grid-template-columns:1.05fr .95fr; gap:16px; box-shadow:0 30px 90px rgba(0,0,0,.28); }
+    .launch-copy { border:1px solid var(--line); border-radius:24px; padding:24px; background:rgba(6,17,13,.62); } .launch-copy h2 { font-size:42px; line-height:.96; } .launch-copy ul, .kit-list { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:10px; } .launch-copy li, .kit-list li { display:flex; gap:10px; color:var(--muted); line-height:1.5; } .launch-copy li:before, .kit-list li:before { content:""; width:7px; height:7px; margin-top:8px; flex:0 0 7px; border-radius:50%; background:var(--acid); box-shadow:0 0 16px rgba(215,255,105,.4); }
+    .launch-metrics { display:grid; gap:12px; } .metric-card { border:1px solid var(--line); border-radius:20px; padding:18px; background:rgba(255,255,255,.045); } .metric-card span { color:var(--blue); font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; } .metric-card strong { display:block; margin-top:7px; font-size:24px; } .metric-card small { display:block; margin-top:8px; color:var(--muted); line-height:1.5; }
+    .kit-row { margin-top:18px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .kit-row a { border:1px solid var(--line); border-radius:18px; padding:16px; color:var(--ink); text-decoration:none; background:rgba(255,255,255,.04); } .kit-row span { display:block; color:var(--mint); font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; } .kit-row b { display:block; margin-top:7px; font-size:16px; } .kit-row small { display:block; margin-top:7px; color:var(--muted); line-height:1.45; }
     footer { margin-top:18px; border-radius:24px; padding:18px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; color:var(--muted); } code { color:var(--acid); }
-    @media (max-width: 820px) { .hero, .grid { grid-template-columns:1fr; } .hero { padding:28px; } nav { align-items:flex-start; border-radius:24px; flex-direction:column; } }
+    @media (max-width: 900px) { .hero, .grid, .launch-room, .kit-row { grid-template-columns:1fr; } .hero { padding:28px; } nav { align-items:flex-start; border-radius:24px; flex-direction:column; } }
   </style>
 </head>
 <body>
   <main>
-    <nav><strong>KNOT</strong><div class="actions"><a href="/.well-known/knot">Discovery</a><a href="/api/openapi">OpenAPI</a><a href="/api/manifest">Manifest</a></div></nav>
+    <nav><strong>KNOT</strong><div class="actions"><a href="/.well-known/knot">Discovery</a><a href="/api/openapi">OpenAPI</a><a href="/api/manifest">Manifest</a><a href="/api/launch">Launch kit</a></div></nav>
     <section class="hero">
       <div><span class="eyebrow">Verification-native settlement on Arc</span><h1>Never pay an API <span>for an answer you cannot trust.</span></h1><p>KNOT routes agent work through policy-aware providers, rejects weak evidence, and authorizes USDC only when a delivery satisfies the buyer's obligation.</p></div>
-      <div class="proof"><div><span>Live Arc proof</span><b>Job #${LATEST_PROOF.jobId}</b><p>Evidence hash anchored through the KNOT hook and completed on Arc Testnet.</p></div><div><span>Machine-readable</span><b>Discovery + OpenAPI</b><p>External agents can quote, execute, read receipts, and verify evidence bindings.</p></div></div>
+      <div class="proof"><div><span>Live Arc proof</span><b>Job #${LATEST_PROOF.jobId}</b><p>Evidence hash anchored through the KNOT hook and completed on Arc Testnet.</p></div><div><span>Machine-readable</span><b>Discovery + OpenAPI</b><p>External agents can quote, execute, read receipts, and verify evidence bindings.</p></div><div><span>Launch ready</span><b>Domain-agnostic</b><p>The preview host is temporary. KNOT is ready to attach a clean custom domain for public judging.</p></div></div>
     </section>
     <section class="grid">
       <article class="panel">
@@ -634,6 +727,29 @@ function landing() {
         <button id="execute">Run preview execution</button>
         <pre id="execOut">Ready to execute.</pre>
       </article>
+    </section>
+    <section class="launch-room">
+      <article class="launch-copy">
+        <span class="eyebrow">Launch room</span>
+        <h2>Built to be a product, not a slide.</h2>
+        <p>KNOT has a buyer surface, provider route logic, receipt verification, public integration docs, and onchain proof. The remaining launch step is brand distribution: attach a clean custom domain and move hosted preview receipts to durable storage before a public pilot.</p>
+        <ul>
+          <li>Buyers get route, cost, and fallback clarity before an agent spends.</li>
+          <li>Providers compete on proof quality, not just generated text.</li>
+          <li>Protocols receive an evidence hash they can enforce onchain.</li>
+        </ul>
+      </article>
+      <div class="launch-metrics">
+        <div class="metric-card"><span>Primary wedge</span><strong>Agent treasury clearing</strong><small>Start where every autonomous payment needs a policy gate.</small></div>
+        <div class="metric-card"><span>Revenue path</span><strong>Accepted settlement fee</strong><small>KNOT can charge only when work clears the verification boundary.</small></div>
+        <div class="metric-card"><span>TGE guardrail</span><strong>USDC stays settlement</strong><small>Future token utility belongs around reputation, verifier incentives, and governance, not payment replacement.</small></div>
+      </div>
+    </section>
+    <section class="kit-row" aria-label="KNOT launch evidence links">
+      <a href="/api/submission"><span>Judge brief</span><b>/api/submission</b><small>Problem, users, demo flow, and live proof.</small></a>
+      <a href="/api/launch"><span>Launch kit</span><b>/api/launch</b><small>Domain readiness, utility, revenue, and TGE narrative.</small></a>
+      <a href="/api/system/status"><span>Status</span><b>/api/system/status</b><small>Runtime readiness without exposing secrets.</small></a>
+      <a href="${LATEST_PROOF.completionExplorerUrl}"><span>Arc proof</span><b>Completed job</b><small>Onchain completion tied to KNOT evidence.</small></a>
     </section>
     <footer><span>Commerce <code>${ARC_DEPLOYMENT.commerce.address}</code></span><span>Hook <code>${ARC_DEPLOYMENT.hook.address}</code></span><span><a href="${LATEST_PROOF.completionExplorerUrl}" style="color:var(--acid)">View completed job</a></span></footer>
   </main>
@@ -723,9 +839,10 @@ async function handle(request) {
   if (request.method === "GET" && url.pathname === "/api/openapi") return json(openApi(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/manifest") return json(manifest(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/submission") return json(submission(baseUrl));
+  if (request.method === "GET" && url.pathname === "/api/launch") return json(launchKit(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/system/status") return json(status(baseUrl));
   if (request.method === "GET" && url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /\nSitemap: " + absolute(baseUrl, "/sitemap.xml") + "\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
-  if (request.method === "GET" && url.pathname === "/sitemap.xml") return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${baseUrl}/</loc></url><url><loc>${baseUrl}/.well-known/knot</loc></url><url><loc>${baseUrl}/api/openapi</loc></url></urlset>`, { headers: { "content-type": "application/xml; charset=utf-8" } });
+  if (request.method === "GET" && url.pathname === "/sitemap.xml") return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${baseUrl}/</loc></url><url><loc>${baseUrl}/.well-known/knot</loc></url><url><loc>${baseUrl}/api/openapi</loc></url><url><loc>${baseUrl}/api/submission</loc></url><url><loc>${baseUrl}/api/launch</loc></url></urlset>`, { headers: { "content-type": "application/xml; charset=utf-8" } });
   if (request.method === "POST" && url.pathname === "/api/quote") return json(quoteJob(await requestBody(request)));
   if (request.method === "POST" && url.pathname === "/api/executions") return json(await createExecution(await requestBody(request)), { status: 201 });
   if (request.method === "GET" && url.pathname === "/api/executions") {

@@ -21,10 +21,16 @@ async function main() {
   assert(openapi.openapi === "3.1.0", "openapi version mismatch");
   assert(openapi.paths["/api/quote"], "openapi missing quote path");
   assert(openapi.paths["/api/submission"], "openapi missing submission path");
+  assert(openapi.paths["/api/launch"], "openapi missing launch path");
 
   const submission = await readJson("/api/submission");
   assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission tagline mismatch");
   assert(submission.judgeChecklist.includes("Different policies produce different provider routes."), "submission checklist mismatch");
+
+  const launch = await readJson("/api/launch");
+  assert(launch.status === "testnet-ready", "launch kit status mismatch");
+  assert(launch.domainReadiness.customDomainReady === true, "launch kit should be custom-domain ready");
+  assert(launch.tgeNarrative.guardrail.includes("USDC remains"), "launch kit missing TGE guardrail");
 
   const subject = "0x0000000000000000000000000000000000000001";
   const executionInput = {
@@ -59,6 +65,7 @@ async function main() {
   console.log(JSON.stringify({
     discovery: discovery.protocol,
     submission: submission.name,
+    launch: launch.status,
     quote: quote.recommendedProvider.name,
     execution: execution.id,
     verification: verification.status,

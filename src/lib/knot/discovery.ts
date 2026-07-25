@@ -34,6 +34,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       "x402-provider-settlement",
       "erc-8183-style-completion-hooks",
       "judge-ready-submission-brief",
+      "launch-readiness-kit",
     ],
     chain: manifest.chain,
     contracts: manifest.contracts,
@@ -46,6 +47,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       manifest: manifest.endpoints.manifest.url,
       openapi: absoluteUrl(baseUrl, "/api/openapi"),
       submission: absoluteUrl(baseUrl, "/api/submission"),
+      launch: absoluteUrl(baseUrl, "/api/launch"),
     },
     auth: {
       quote: "none",
@@ -60,6 +62,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       "POST /api/executions",
       "GET /api/executions/{id}",
       "GET /api/receipts/verify?id={id}&evidenceHash={hash}",
+      "GET /api/launch",
     ],
   };
 }
@@ -127,6 +130,18 @@ export function createKnotOpenApi(options: DiscoveryOptions = {}) {
           responses: {
             "200": {
               description: "KNOT submission brief",
+              content: { "application/json": { schema: { type: "object" } } },
+            },
+          },
+        },
+      },
+      "/api/launch": {
+        get: {
+          tags: ["Discovery"],
+          summary: "Read KNOT's launch, domain, utility, and go-to-market kit.",
+          responses: {
+            "200": {
+              description: "KNOT launch kit",
               content: { "application/json": { schema: { type: "object" } } },
             },
           },

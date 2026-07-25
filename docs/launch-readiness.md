@@ -93,6 +93,8 @@ The hosted environment should define:
 
 `/api/submission` should also be reachable. It is the judge-facing project brief with problem framing, target users, demo flow, live proof links, and the checklist of what is actually working.
 
+`/api/launch` should be reachable before any public share. It is the launch-facing kit with custom-domain readiness, utility, revenue paths, go-to-market wedge, and TGE-safe guardrails.
+
 Receipt verification should also work:
 
 ```bash
@@ -122,6 +124,20 @@ The hackathon build is intentionally narrow and transparent. Before a mainnet pi
 - Add webhook reconciliation for delayed Circle Gateway batch settlement.
 - Add alerting for failed attestations and stale Arc RPC reads.
 - Gate protocol-funded live execution behind an operator dashboard and audit log.
+
+## Domain launch
+
+Use [`docs/domain-launch-playbook.md`](domain-launch-playbook.md) before a public judging link, investor link, or pilot link goes out.
+
+The preview host is temporary. The canonical KNOT surface should be a purchased custom domain with:
+
+- `/` for the console or hosted worker preview;
+- `/.well-known/knot` for agent discovery;
+- `/api/openapi` for integration;
+- `/api/submission` for judging;
+- `/api/launch` for launch and utility narrative;
+- `/api/system/status` for readiness;
+- `/api/quote`, `/api/executions`, and `/api/receipts/verify` for the working proof path.
 
 ## Positioning
 

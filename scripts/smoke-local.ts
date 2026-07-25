@@ -102,6 +102,7 @@ async function main() {
       && "/api/receipts/verify" in openapi.paths,
     "openapi endpoint is missing KNOT quote or receipt paths",
   );
+  assert("/api/launch" in openapi.paths, "openapi endpoint is missing launch kit path");
 
   const submission = await readJson<JsonObject>("/api/submission");
   assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission brief tagline mismatch");
@@ -109,6 +110,16 @@ async function main() {
     Array.isArray(submission.judgeChecklist)
       && submission.judgeChecklist.some((item) => typeof item === "string" && item.includes("Different policies")),
     "submission brief is missing judge checklist evidence",
+  );
+
+  const launch = await readJson<JsonObject>("/api/launch");
+  assert(launch.status === "testnet-ready", "launch kit status mismatch");
+  assert(
+    launch.domainReadiness
+      && typeof launch.domainReadiness === "object"
+      && "customDomainReady" in launch.domainReadiness
+      && launch.domainReadiness.customDomainReady === true,
+    "launch kit does not mark custom domain readiness",
   );
 
   const status = await readJson<JsonObject>("/api/system/status");

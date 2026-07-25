@@ -14,6 +14,7 @@ describe("GET /api/submission", () => {
         console: "https://knot.example/",
         discovery: "https://knot.example/.well-known/knot",
         openapi: "https://knot.example/api/openapi",
+        launch: "https://knot.example/api/launch",
         quote: "https://knot.example/api/quote",
         execute: "https://knot.example/api/executions",
       },
@@ -27,6 +28,7 @@ describe("GET /api/submission", () => {
     expect(body.problem).toContain("Agent payments are becoming easy, but agent accountability is still thin.");
     expect(body.demoFlow).toContain("Strict rejects Baseline and Sentinel, then accepts Arc Veritas at 0.045 USDC.");
     expect(body.judgeChecklist).toContain("OpenAPI and discovery endpoints let external agents integrate without reading the UI.");
+    expect(body.judgeChecklist).toContain("The launch kit explains domain readiness, utility, revenue paths, and TGE guardrails.");
     expect(serialized).not.toContain("PRIVATE_KEY");
     expect(serialized).not.toContain("SECRET");
   });

@@ -28,6 +28,7 @@ KNOT fills that gap. It sits between an autonomous buyer agent and paid provider
 - Agent discovery at `/.well-known/knot`.
 - OpenAPI 3.1 at `/api/openapi`.
 - Judge-ready machine-readable brief at `/api/submission`.
+- Launch kit at `/api/launch` with domain readiness, utility, revenue paths, and TGE-safe guardrails.
 - Arc Testnet `KnotCommerce` and `KnotVerificationHook` contracts.
 - Completed ERC-8183-style testnet job recorded in `deployments/erc8183-testnet.json`.
 - Sites-compatible public worker export for private hosted preview.
@@ -41,7 +42,8 @@ KNOT fills that gap. It sits between an autonomous buyer agent and paid provider
 5. Show Strict rejecting Baseline and Sentinel, then accepting Arc Veritas at `0.045 USDC`.
 6. Open a generated receipt and verify the evidence hash.
 7. Open `/.well-known/knot`, `/api/openapi`, and `/api/submission` to show external agent readiness.
-8. Show the Arcscan links for the live commerce contract, hook, attestation transaction, and completed job.
+8. Open `/api/launch` to show the custom-domain plan, utility narrative, and launch path.
+9. Show the Arcscan links for the live commerce contract, hook, attestation transaction, and completed job.
 
 ## Why it should win
 

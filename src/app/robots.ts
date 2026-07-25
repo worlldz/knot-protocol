@@ -6,8 +6,23 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
-      disallow: ["/api/"],
+      allow: [
+        "/",
+        "/.well-known/knot",
+        "/api/openapi",
+        "/api/manifest",
+        "/api/submission",
+        "/api/launch",
+        "/api/system/status",
+      ],
+      disallow: [
+        "/api/agents",
+        "/api/executions",
+        "/api/providers",
+        "/api/quote",
+        "/api/receipts",
+        "/api/x402",
+      ],
     },
     sitemap: `${siteUrl.replace(/\/+$/, "")}/sitemap.xml`,
   };

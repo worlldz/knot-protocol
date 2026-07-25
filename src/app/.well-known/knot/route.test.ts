@@ -18,6 +18,7 @@ describe("GET /.well-known/knot", () => {
         execute: "https://knot.example/api/executions",
         openapi: "https://knot.example/api/openapi",
         submission: "https://knot.example/api/submission",
+        launch: "https://knot.example/api/launch",
       },
       auth: {
         quote: "none",
@@ -27,7 +28,9 @@ describe("GET /.well-known/knot", () => {
     expect(body.capabilities).toContain("preflight-quotes");
     expect(body.capabilities).toContain("receipt-verification");
     expect(body.capabilities).toContain("judge-ready-submission-brief");
+    expect(body.capabilities).toContain("launch-readiness-kit");
     expect(body.recommendedFlow).toContain("POST /api/quote");
+    expect(body.recommendedFlow).toContain("GET /api/launch");
     expect(serialized).not.toContain("PRIVATE_KEY");
     expect(serialized).not.toContain("SECRET");
   });

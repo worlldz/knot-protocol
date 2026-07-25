@@ -37,6 +37,10 @@ describe("GET /api/manifest", () => {
           method: "GET",
           url: "https://knot.example/api/submission",
         },
+        launch: {
+          method: "GET",
+          url: "https://knot.example/api/launch",
+        },
         quoteExecution: {
           method: "POST",
           url: "https://knot.example/api/quote",

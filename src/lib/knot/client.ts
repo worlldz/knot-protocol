@@ -1,5 +1,6 @@
 import type { CreateExecutionInput, Execution } from "./schemas";
 import type { createKnotManifest } from "./manifest";
+import type { createKnotLaunchKit } from "./launch";
 import type { ExecutionQuote } from "./quote";
 import type { ReceiptVerification } from "./receipt-verifier";
 
@@ -16,6 +17,7 @@ export type RunExecutionOptions = {
   signal?: AbortSignal;
 };
 export type KnotManifest = ReturnType<typeof createKnotManifest>;
+export type KnotLaunchKit = ReturnType<typeof createKnotLaunchKit>;
 
 export class KnotClientError extends Error {
   readonly status: number;
@@ -107,6 +109,10 @@ export class KnotClient {
 
   async getManifest() {
     return this.request<KnotManifest>("/api/manifest");
+  }
+
+  async getLaunchKit() {
+    return this.request<KnotLaunchKit>("/api/launch");
   }
 
   async verifyReceipt(id: string, evidenceHash?: string) {
