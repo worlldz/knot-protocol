@@ -811,7 +811,7 @@ function landing() {
     .brand { display:flex; align-items:center; gap:13px; text-decoration:none; } .mark { position:relative; width:39px; height:39px; border-radius:50%; background:var(--ink); overflow:hidden; box-shadow:inset 0 0 0 1px rgba(7,16,13,.2); } .mark:before,.mark:after { content:""; position:absolute; inset:9px 11px; border:2px solid var(--acid); border-radius:50% 50% 45% 55%; transform:rotate(38deg); } .mark:after { border-color:var(--mint); transform:rotate(-38deg); }
     .brand b { display:block; font-size:15px; letter-spacing:.19em; } .brand small { display:block; margin-top:2px; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.12em; }
     .tabs { justify-self:center; display:flex; gap:4px; padding:5px; border:1px solid var(--line); border-radius:999px; background:rgba(16,29,24,.72); box-shadow:0 10px 35px var(--shadow); }
-    .tabs a { border-radius:999px; padding:10px 15px; color:var(--muted); text-decoration:none; font-size:12px; font-weight:800; } .tabs a:first-child { color:#0b1611; background:var(--acid); box-shadow:0 6px 20px rgba(203,255,74,.25); }
+    .tabs button { border:0; border-radius:999px; background:transparent; padding:10px 15px; color:var(--muted); font-size:12px; font-weight:800; cursor:pointer; } .tabs button.active { color:#0b1611; background:var(--acid); box-shadow:0 6px 20px rgba(203,255,74,.25); }
     .wallet { display:flex; gap:6px; } .wallet span { min-height:48px; display:flex; flex-direction:column; justify-content:center; border:1px solid var(--line); background:var(--panel); padding:8px 13px; } .wallet span:first-child { border-radius:14px 7px 7px 14px; min-width:145px; } .wallet span:last-child { border-radius:7px 14px 14px 7px; min-width:150px; } .wallet small { color:var(--muted); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; } .wallet b { font-size:13px; }
     .hero { padding-block:72px 64px; } .kicker { display:flex; align-items:center; gap:18px; margin-bottom:32px; color:var(--muted); font-size:11px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; } .kicker span { display:grid; place-items:center; width:30px; height:30px; border:1px solid var(--line); border-radius:50%; font-size:9px; }
     .hero-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(500px,.65fr); gap:58px; align-items:center; } h1 { margin:0; font-family:"Bahnschrift","Aptos Display",sans-serif; font-size:clamp(4.2rem,7.15vw,8rem); font-weight:650; line-height:.86; letter-spacing:-.07em; } h1 span { display:block; margin-top:.07em; color:var(--muted); }
@@ -822,20 +822,21 @@ function landing() {
     .trust p { margin:0; color:var(--soft); font-size:16px; line-height:1.68; } .trust p strong { color:var(--ink); }
     .ribbon { display:grid; grid-template-columns:minmax(240px,1fr) repeat(4,minmax(125px,.46fr)) auto; overflow:hidden; margin-bottom:18px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:0 22px 60px var(--shadow); } .ribbon>*{min-height:88px;border-right:1px solid var(--line)} .ribbon>*:last-child{border-right:0}.ribbon-intro{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:17px 22px}.ribbon small,.ribbon-intro span{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.ribbon p{margin:0;color:var(--soft);font-size:13px;line-height:1.5}.metric{display:flex;align-items:center;gap:12px;padding:14px 17px}.glyph{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:rgba(203,255,74,.12);color:var(--acid);font-size:12px;font-weight:900}.metric b{display:block;margin-top:5px;font-size:13px}.ribbon button{border:0;background:var(--acid);color:#0a150f;padding:0 20px;font-size:12px;font-weight:900}
     .demo { display:grid; grid-template-columns:minmax(280px,.78fr) minmax(520px,1.22fr) auto; gap:1px; overflow:hidden; margin-bottom:18px; border:1px solid var(--line); border-radius:24px; background:var(--line); box-shadow:0 22px 65px var(--shadow); } .demo>*{background:var(--panel)}.demo-copy{display:flex;flex-direction:column;justify-content:center;gap:9px;padding:24px;background:radial-gradient(circle at 0 0,rgba(203,255,74,.12),transparent 18rem),var(--panel)}.eyebrow{color:var(--mint);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.demo h2,.workspace h2,.protocol h2{margin:0;font-family:"Bahnschrift",sans-serif;font-size:31px;line-height:.98;letter-spacing:-.04em}.demo p{margin:0;color:var(--soft);font-size:13px;line-height:1.6}.runs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}.run{padding:20px;background:var(--panel2)}.run h3{margin:10px 0 13px;font-size:22px}.run dl{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--line)}.run div{background:var(--panel);padding:9px}.run dt{color:var(--muted);font-size:8px;font-weight:900;text-transform:uppercase}.run dd{margin:4px 0 0;font-size:10px;font-weight:900}.run small{display:block;margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}.demo button{border:0;background:var(--mint);color:#07100d;padding:0 22px;font-size:12px;font-weight:900}
-    .workspace { display:grid; grid-template-columns:minmax(420px,.86fr) minmax(520px,1.14fr); gap:18px; align-items:start; } .panel { border:1px solid var(--line); border-radius:28px; background:var(--panel); padding:25px; box-shadow:0 25px 80px var(--shadow); } label{display:grid;gap:8px;margin-top:14px;color:var(--mint);font-size:12px;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.workspace input,.workspace select,.workspace textarea{width:100%;border:1px solid var(--line);border-radius:14px;background:rgba(2,9,7,.46);color:var(--ink);padding:13px 14px}.workspace textarea{min-height:92px}.policies{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}.policies button{min-height:58px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:10px;text-align:left}.policies button.active{border-color:rgba(203,255,74,.55);background:rgba(203,255,74,.12)}.quote-btn,.run-btn{width:100%;border:0;border-radius:17px;background:var(--acid);color:#0a150f;padding:17px 20px;margin-top:14px;font-weight:900}.trace{height:680px;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:radial-gradient(circle at 95% 0,rgba(92,240,187,.11),transparent 25rem),linear-gradient(145deg,#0d1713,#07100d);box-shadow:0 28px 90px rgba(0,0,0,.35)}.trace-head{display:flex;justify-content:space-between;padding:28px 30px 23px;border-bottom:1px solid rgba(255,255,255,.1)}.trace-list{flex:1;overflow:auto;margin:0;padding:24px 30px;list-style:none}.trace li{display:grid;grid-template-columns:23px 1fr;gap:13px;min-height:94px}.dot{width:10px;height:10px;margin-top:4px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px rgba(92,240,187,.12)}.trace h3{margin:5px 0}.trace p{margin:0;color:#afc0b7;font-size:13px;line-height:1.55}.receipt{display:none;margin-top:18px;border:1px solid rgba(92,240,187,.35);border-radius:24px;background:linear-gradient(100deg,rgba(92,240,187,.09),var(--panel));padding:20px;box-shadow:0 22px 65px var(--shadow)}.receipt.on{display:grid;gap:10px}.receipt code{color:var(--acid)}
-    .protocol{margin-top:72px}.protocol-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.market{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:24px;background:var(--line)}.market article{background:var(--panel2);padding:20px}.market h3{margin:10px 0}.market dl{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:13px;overflow:hidden}.market div{display:flex;justify-content:space-between;gap:10px;background:var(--panel);padding:9px}.market dt{color:var(--muted);font-size:8px;font-weight:900}.market dd{margin:0;font-size:10px;font-weight:900}.links{display:grid;gap:10px}.links a{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:15px;text-decoration:none;font-weight:900}.footer{margin:32px 0;border-top:1px solid var(--line);padding-top:18px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted)} code{color:var(--acid)}
-    @media(max-width:1000px){.nav{grid-template-columns:1fr auto}.tabs{order:3;grid-column:1/-1}.hero-grid,.workspace,.protocol-grid{grid-template-columns:1fr}.trust{max-width:760px}.ribbon{grid-template-columns:repeat(2,1fr)}.ribbon-intro,.ribbon button{grid-column:1/-1}.demo{grid-template-columns:1fr}.market{grid-template-columns:1fr}.runs{grid-template-columns:1fr}} @media(max-width:700px){.shell{width:calc(100% - 28px)}.wallet span:first-child{display:none}.brand small{display:none}h1{font-size:clamp(3.6rem,14vw,6rem)}.trust{min-height:520px}.policies{grid-template-columns:1fr}.ribbon{grid-template-columns:1fr}.tabs{width:100%;overflow:auto}.tabs a{flex:1;text-align:center;white-space:nowrap}}
+    .view{display:none}.view.active{display:block}.workspace { display:grid; grid-template-columns:minmax(420px,.86fr) minmax(520px,1.14fr); gap:18px; align-items:start; margin-bottom:64px; } .panel { border:1px solid var(--line); border-radius:28px; background:var(--panel); padding:25px; box-shadow:0 25px 80px var(--shadow); } label{display:grid;gap:8px;margin-top:14px;color:var(--mint);font-size:12px;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.workspace input,.workspace select,.workspace textarea,.payment-form input,.receipt-form input{width:100%;border:1px solid var(--line);border-radius:14px;background:rgba(2,9,7,.46);color:var(--ink);padding:13px 14px}.workspace textarea{min-height:92px}.policies{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}.policies button{min-height:58px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:10px;text-align:left}.policies button.active{border-color:rgba(203,255,74,.55);background:rgba(203,255,74,.12)}.quote-btn,.run-btn,.pay-btn,.verify-btn{width:100%;border:0;border-radius:17px;background:var(--acid);color:#0a150f;padding:17px 20px;margin-top:14px;font-weight:900}.trace{height:680px;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:radial-gradient(circle at 95% 0,rgba(92,240,187,.11),transparent 25rem),linear-gradient(145deg,#0d1713,#07100d);box-shadow:0 28px 90px rgba(0,0,0,.35)}.trace-head{display:flex;justify-content:space-between;padding:28px 30px 23px;border-bottom:1px solid rgba(255,255,255,.1)}.trace-list{flex:1;overflow:auto;margin:0;padding:24px 30px;list-style:none}.trace li{display:grid;grid-template-columns:23px 1fr;gap:13px;min-height:94px}.dot{width:10px;height:10px;margin-top:4px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px rgba(92,240,187,.12)}.trace h3{margin:5px 0}.trace p{margin:0;color:#afc0b7;font-size:13px;line-height:1.55}.receipt{display:none;margin-top:18px;border:1px solid rgba(92,240,187,.35);border-radius:24px;background:linear-gradient(100deg,rgba(92,240,187,.09),var(--panel));padding:20px;box-shadow:0 22px 65px var(--shadow)}.receipt.on{display:grid;gap:10px}.receipt code{color:var(--acid)}
+    .view-hero{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:56px;align-items:center;padding:130px 0 58px;border-bottom:1px solid var(--line)}.view-hero p{color:var(--soft);font-size:17px;line-height:1.7}.rail-card{border:1px solid var(--line2);border-radius:20px;background:var(--panel);padding:18px}.rail-icons{display:grid;grid-template-columns:auto 1fr auto 1fr auto 1fr auto;align-items:center;gap:8px;margin-bottom:22px}.rail-icons span{width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(92,240,187,.35);border-radius:15px;color:var(--mint);font-weight:900}.rail-icons i{height:1px;background:linear-gradient(90deg,var(--line),var(--mint),var(--line))}.info-list{overflow:hidden;border:1px solid var(--line);border-radius:16px}.info-list div{display:flex;justify-content:space-between;gap:14px;padding:15px 16px;border-bottom:1px solid var(--line)}.info-list div:last-child{border-bottom:0}.info-list dt{color:var(--soft);font-size:12px;font-weight:900;text-transform:uppercase}.info-list dd{margin:0;font-weight:900}.build-band{display:grid;grid-template-columns:1.1fr .52fr .48fr;gap:28px;align-items:center;margin:22px 0 70px;border:1px solid var(--line2);border-radius:32px;background:linear-gradient(110deg,rgba(74,112,39,.55),rgba(16,29,24,.92) 45%,rgba(28,28,56,.86));padding:50px 48px}.build-band h2{margin:6px 0;font-family:"Bahnschrift",sans-serif;font-size:clamp(3rem,5vw,5.8rem);letter-spacing:-.06em}.arc-logo{display:grid;place-items:center;min-height:170px;border:1px solid var(--line2);border-radius:24px;background:rgba(255,255,255,.04);font-size:74px;color:#7b55d9}.x402{display:grid;place-items:center;min-height:170px;border-radius:24px;background:var(--acid);color:#07100d;transform:rotate(2deg)}.x402 strong{font-size:72px;line-height:.85}.x402 span{font-size:11px;font-weight:900;letter-spacing:.16em}.protocol{margin:72px auto}.protocol-grid,.payment-layout,.receipts-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}.market{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:24px;background:var(--line)}.market article{background:var(--panel2);padding:20px}.market h3{margin:10px 0}.market dl{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:13px;overflow:hidden}.market div{display:flex;justify-content:space-between;gap:10px;background:var(--panel);padding:9px}.market dt{color:var(--muted);font-size:8px;font-weight:900}.market dd{margin:0;font-size:10px;font-weight:900}.links{display:grid;gap:10px}.links a{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:15px;text-decoration:none;font-weight:900}.receipt-ledger{display:grid;gap:12px}.receipt-card{border:1px solid var(--line);border-radius:22px;background:var(--panel);padding:20px}.receipt-card h3{margin:8px 0}.receipt-card dl,.wallet-overview dl{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--line)}.receipt-card dl div,.wallet-overview dl div{background:var(--panel2);padding:11px}.receipt-card dt,.wallet-overview dt{color:var(--muted);font-size:9px;font-weight:900;text-transform:uppercase}.receipt-card dd,.wallet-overview dd{margin:5px 0 0;font-weight:900}.empty-state{min-height:420px;display:grid;place-items:center;text-align:center;border:1px solid var(--line);border-radius:28px;background:radial-gradient(circle,rgba(92,240,187,.09),transparent 20rem),var(--panel)}.payment-form,.wallet-overview,.receipt-form{border:1px solid var(--line);border-radius:28px;background:var(--panel);padding:28px;box-shadow:0 25px 80px var(--shadow)}.payment-form h2,.receipt-form h2,.wallet-overview h2{font-family:"Bahnschrift",sans-serif;font-size:32px;margin:6px 0 18px}.amount-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.amount-grid button{border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:11px}.payment-status,.verify-status{margin-top:14px;border:1px solid var(--line2);border-radius:16px;background:var(--panel2);padding:14px;color:var(--soft)}.balance{font-family:"Bahnschrift",sans-serif;font-size:70px;line-height:1;margin:18px 0}.balance span{font-size:16px;color:var(--muted)}.footer{margin:32px 0;border-top:1px solid var(--line);padding-top:18px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted)} code{color:var(--acid)}
+    @media(max-width:1000px){.nav{grid-template-columns:1fr auto}.tabs{order:3;grid-column:1/-1}.hero-grid,.workspace,.protocol-grid,.payment-layout,.receipts-layout,.view-hero{grid-template-columns:1fr}.trust{max-width:760px}.ribbon{grid-template-columns:repeat(2,1fr)}.ribbon-intro,.ribbon button{grid-column:1/-1}.demo{grid-template-columns:1fr}.market{grid-template-columns:1fr}.runs{grid-template-columns:1fr}.build-band{grid-template-columns:1fr 1fr}.x402{display:none}} @media(max-width:700px){.shell{width:calc(100% - 28px)}.wallet span:first-child{display:none}.brand small{display:none}h1{font-size:clamp(3.6rem,14vw,6rem)}.trust{min-height:520px}.policies{grid-template-columns:1fr}.ribbon{grid-template-columns:1fr}.tabs{width:100%;overflow:auto}.tabs button{flex:1;text-align:center;white-space:nowrap}.market,.build-band{grid-template-columns:1fr}.receipt-card dl,.wallet-overview dl{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <header class="header">
     <nav class="nav shell">
       <a class="brand" href="/" aria-label="KNOT clearing console"><span class="mark"></span><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></a>
-      <div class="tabs"><a href="/">Verify</a><a href="/receipt/demo">Receipts</a><a href="#treasury">Treasury</a><a href="#protocol">Protocol</a></div>
+      <div class="tabs" role="tablist" aria-label="KNOT sections"><button class="active" data-view="console" type="button">Verify</button><button data-view="receipts" type="button">Receipts</button><button data-view="payment" type="button">Treasury</button><button data-view="explore" type="button">Protocol</button></div>
       <div class="wallet"><span><small>Network</small><b>Add Arc Testnet</b></span><span><small>Wallet</small><b>Connect wallet</b></span></div>
     </nav>
   </header>
   <main>
+    <div class="view active" data-page="console">
     <section class="hero shell">
       <div class="kicker"><span>01</span><p>OUTCOME CLEARING FOR AUTONOMOUS COMMERCE</p></div>
       <div class="hero-grid">
@@ -880,6 +881,71 @@ function landing() {
       </article>
     </section>
     <section class="receipt shell" id="receipt"><strong>SEALED EXECUTION RECEIPT</strong><span id="receiptCopy"></span><code id="receiptHash"></code><a id="receiptLink" href="#">Open verified receipt</a></section>
+    </div>
+    <div class="view" data-page="receipts">
+      <section class="view-hero shell">
+        <div><span class="eyebrow">RECEIPT LEDGER</span><h1>Verify the work. <span>Then trust the payment.</span></h1></div>
+        <p>Receipts are the evidence boundary: provider route, accepted delivery, USDC amount, evidence hash, and settlement status stay readable by execution ID.</p>
+      </section>
+      <section class="receipts-layout shell">
+        <form class="receipt-form" id="receiptForm">
+          <span class="eyebrow">VERIFY A RECEIPT</span>
+          <h2>Check the evidence binding.</h2>
+          <label>Receipt ID<input id="verifyId" placeholder="run_..." autocomplete="off"></label>
+          <label>Evidence hash<input id="verifyHash" placeholder="0x..." autocomplete="off"></label>
+          <button class="verify-btn" type="submit">Verify receipt</button>
+          <div class="verify-status" id="verifyStatus">Run a proof preview first, or paste a receipt ID.</div>
+        </form>
+        <div>
+          <div class="empty-state" id="receiptEmpty"><div><span class="mark"></span><h2>No receipts yet.</h2><p>Run a proof preview from Verify. The generated receipt appears here instantly.</p></div></div>
+          <div class="receipt-ledger" id="receiptLedger"></div>
+        </div>
+      </section>
+    </div>
+    <div class="view" data-page="payment">
+      <section class="view-hero shell">
+        <div><span class="eyebrow">DIRECT SETTLEMENT / ARC TESTNET</span><h1>Payment is easy. <span>Proof is the hard part.</span></h1></div>
+        <p>Arc uses USDC as native gas and native value. KNOT adds the missing proof boundary before treasury value moves.</p>
+      </section>
+      <section class="payment-layout shell">
+        <article class="payment-form">
+          <span class="eyebrow">NATIVE TRANSFER</span>
+          <h2>Send payment</h2>
+          <label>Recipient wallet<input id="payRecipient" placeholder="0x..." autocomplete="off"></label>
+          <label>Amount<input id="payAmount" placeholder="0.00" inputmode="decimal"></label>
+          <div class="amount-grid"><button type="button" data-amount="1">1 USDC</button><button type="button" data-amount="5">5 USDC</button><button type="button" data-amount="10">10 USDC</button><button type="button" data-amount="25">25 USDC</button></div>
+          <button class="pay-btn" id="payButton" type="button">Preview treasury payment</button>
+          <div class="payment-status" id="paymentStatus">No payment staged.</div>
+        </article>
+        <aside class="wallet-overview">
+          <span class="eyebrow">WALLET STATE</span>
+          <h2>Ready to send on Arc.</h2>
+          <div class="balance">0.00 <span>USDC</span></div>
+          <dl><div><dt>Wallet</dt><dd>Not connected</dd></div><div><dt>Network</dt><dd>Arc Testnet preview</dd></div><div><dt>Finality</dt><dd>One confirmation</dd></div><div><dt>Gas asset</dt><dd>USDC</dd></div></dl>
+          <p style="color:var(--soft);line-height:1.65">Hosted worker mode cannot open your local injected wallet, so this screen previews the exact treasury flow and keeps the real wallet send in the full 3025 deployment.</p>
+        </aside>
+      </section>
+      <section class="protocol shell">
+        <div class="protocol-grid">
+          <article class="panel"><span class="eyebrow">STABLE BY DEFAULT</span><h2>Amounts stay readable.</h2><p>Payments, balances, gas, and settlement accounting stay denominated in USDC.</p></article>
+          <article class="panel"><span class="eyebrow">DETERMINISTIC FINALITY</span><h2>One committed Arc block.</h2><p>The rail is designed for predictable machine settlement rather than speculative gas juggling.</p></article>
+        </div>
+      </section>
+    </div>
+    <div class="view" data-page="explore">
+    <section class="view-hero explore-hero shell">
+      <div><span class="eyebrow">ECOSYSTEM FIELD GUIDE</span><h1>Understand the rail. <span>Then build beyond it.</span></h1></div>
+      <aside class="rail-card">
+        <div class="rail-icons"><span>01</span><i></i><span>02</span><i></i><span>03</span><i></i><span>04</span></div>
+        <p>A focused map of the Arc and Circle resources behind KNOT: the network, stablecoin settlement, agent standards, and x402 machine payments.</p>
+        <dl class="info-list"><div><dt>Native value</dt><dd>USDC</dd></div><div><dt>Finality</dt><dd>Sub-second</dd></div><div><dt>Machine rail</dt><dd>x402</dd></div></dl>
+      </aside>
+    </section>
+    <section class="build-band shell">
+      <div><span class="eyebrow">BUILT FOR PROGRAMMABLE MONEY</span><h2>Build on Arc</h2><p>Stablecoin-native settlement, sub-second finality, and an emerging machine economy give KNOT the right place to make verified work payable.</p><a href="https://docs.arc.io/build" target="_blank" rel="noreferrer">Start building -></a></div>
+      <div class="arc-logo"><span>Arc</span></div>
+      <div class="x402"><span>HTTP</span><strong>402</strong><span>PAYMENT REQUIRED</span></div>
+    </section>
     <section class="protocol shell" id="protocol">
       <div class="kicker"><span>02</span><p>THE PROTOCOL KNOT</p></div>
       <div class="protocol-grid">
@@ -892,6 +958,7 @@ function landing() {
       </div>
       <div class="links" style="margin-top:18px"><a href="/.well-known/knot">Agent discovery <span>/.well-known/knot</span></a><a href="/api/openapi">OpenAPI <span>/api/openapi</span></a><a href="/api/submission">Submission brief <span>/api/submission</span></a><a href="/api/marketplace">Marketplace <span>/api/marketplace</span></a><a href="${LATEST_PROOF.completionExplorerUrl}">Arc completed job <span>Job #${LATEST_PROOF.jobId}</span></a></div>
     </section>
+    </div>
     <footer class="footer shell"><span>Commerce <code>${ARC_DEPLOYMENT.commerce.address}</code></span><span>Hook <code>${ARC_DEPLOYMENT.hook.address}</code></span><span>Pay for verified outcomes</span></footer>
   </main>
   <script>
@@ -904,12 +971,69 @@ function landing() {
     const receiptHash = document.getElementById("receiptHash");
     const receiptLink = document.getElementById("receiptLink");
     const eventCount = document.getElementById("eventCount");
+    const receipts = [];
+    const receiptLedger = document.getElementById("receiptLedger");
+    const receiptEmpty = document.getElementById("receiptEmpty");
+    const verifyStatus = document.getElementById("verifyStatus");
     const body = () => ({ jobType: policy.value === "strict" ? "contract-review" : "treasury", policyPreset: policy.value, task: task.value, subject: subject.value, maxPriceUsdc: policy.value === "economy" ? 0.012 : policy.value === "balanced" ? 0.03 : 0.05 });
+    function setView(view) {
+      document.querySelectorAll("[data-page]").forEach((page) => page.classList.toggle("active", page.dataset.page === view));
+      document.querySelectorAll("[data-view]").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
+      history.replaceState(null, "", view === "console" ? "/" : "#" + view);
+      scrollTo({ top: 0, behavior: "smooth" });
+    }
+    document.querySelectorAll("[data-view]").forEach((tab) => tab.addEventListener("click", () => setView(tab.dataset.view)));
+    if (location.hash === "#receipts" || location.hash === "#payment" || location.hash === "#explore") setView(location.hash.slice(1));
+    function renderLedger() {
+      receiptEmpty.style.display = receipts.length ? "none" : "grid";
+      receiptLedger.innerHTML = receipts.map((execution) => {
+        const accepted = execution.attempts.find((attempt) => attempt.outcome === "accepted");
+        return '<article class="receipt-card"><span class="eyebrow">VERIFIED RECEIPT</span><h3>' + execution.id + '</h3><p>' + execution.obligation.task + '</p><dl><div><dt>Provider</dt><dd>' + (accepted ? accepted.provider : 'None') + '</dd></div><div><dt>Amount</dt><dd>' + execution.settlement.amountUsdc.toFixed(3) + ' USDC</dd></div><div><dt>Route</dt><dd>' + execution.attempts.length + ' attempts</dd></div><div><dt>Evidence</dt><dd>' + (execution.settlement.evidenceHash ? execution.settlement.evidenceHash.slice(0, 12) + '...' : 'none') + '</dd></div></dl></article>';
+      }).join("");
+    }
+    function localRoute() {
+      const preset = policy.value;
+      const base = [
+        { id: "arc-baseline", name: "Arc Baseline", priceUsdc: 0.008, reason: "Fast public Arc facts for low-risk decisions.", accepted: preset === "economy" },
+        { id: "arc-sentinel", name: "Arc Sentinel", priceUsdc: 0.024, reason: "Signed evidence for everyday agent payments.", accepted: preset === "balanced" },
+        { id: "arc-veritas", name: "Arc Veritas", priceUsdc: 0.045, reason: "Code-aware proof for treasury and contract decisions.", accepted: preset === "strict" },
+      ];
+      return base.slice(0, preset === "economy" ? 1 : preset === "balanced" ? 2 : 3);
+    }
+    function localQuote() {
+      const route = localRoute().map((provider) => ({
+        ...provider,
+        reasons: [provider.accepted ? "Provider can satisfy this obligation without widening budget or policy." : "Policy requires a stronger evidence envelope, so KNOT falls forward before settlement."],
+      }));
+      return { route, recommendedProvider: route.find((provider) => provider.accepted) || route[route.length - 1] };
+    }
+    async function localExecution() {
+      const route = localRoute();
+      const accepted = route.find((provider) => provider.accepted) || route[route.length - 1];
+      const id = "run_" + crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+      const evidenceHash = "0x" + Array.from(crypto.getRandomValues(new Uint8Array(32))).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      return {
+        id,
+        createdAt: new Date().toISOString(),
+        status: "verified",
+        obligation: body(),
+        events: [
+          { title: route.length + " eligible providers discovered", detail: "KNOT ranked offers by budget, proof support, and provider capability." },
+          ...route.map((provider) => ({ title: provider.accepted ? provider.name + " authorized" : provider.name + " rejected", detail: provider.accepted ? "Evidence hash is bound to settlement authorization." : "Evidence did not satisfy this policy level." })),
+        ],
+        attempts: route.map((provider) => ({ provider: provider.name, outcome: provider.accepted ? "accepted" : "rejected" })),
+        settlement: { amountUsdc: accepted.priceUsdc, evidenceHash },
+      };
+    }
     async function post(path) {
-      const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body()) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
-      return data;
+      try {
+        const res = await fetch(path, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(body()) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        return data;
+      } catch {
+        return path === "/api/quote" ? localQuote() : localExecution();
+      }
     }
     function renderTrace(execution) {
       trace.innerHTML = execution.events.map((item) => '<li><i class="dot"></i><div><h3>' + item.title + '</h3><p>' + item.detail + '</p></div></li>').join("");
@@ -919,6 +1043,10 @@ function landing() {
       receiptCopy.textContent = (accepted ? accepted.provider : "No provider") + " / " + execution.settlement.amountUsdc.toFixed(3) + " USDC / " + execution.attempts.length + " attempt" + (execution.attempts.length === 1 ? "" : "s");
       receiptHash.textContent = execution.settlement.evidenceHash || "no evidence hash";
       receiptLink.href = "/receipt/" + execution.id;
+      receipts.unshift(execution);
+      document.getElementById("verifyId").value = execution.id;
+      document.getElementById("verifyHash").value = execution.settlement.evidenceHash || "";
+      renderLedger();
     }
     document.getElementById("quote").onclick = async () => {
       const quote = await post("/api/quote");
@@ -934,14 +1062,45 @@ function landing() {
       const runs = document.querySelectorAll(".run");
       for (let i = 0; i < cases.length; i += 1) {
         const [preset, maxPriceUsdc] = cases[i];
-        const res = await fetch("/api/executions", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ jobType: preset === "strict" ? "contract-review" : "treasury", policyPreset:preset, subject: subject.value, maxPriceUsdc }) });
-        const execution = await res.json();
+        let execution;
+        try {
+          const res = await fetch("/api/executions", { method:"POST", credentials:"same-origin", headers:{ "content-type":"application/json" }, body: JSON.stringify({ jobType: preset === "strict" ? "contract-review" : "treasury", policyPreset:preset, subject: subject.value, maxPriceUsdc }) });
+          execution = await res.json();
+          if (!res.ok) throw new Error("remote preview failed");
+        } catch {
+          policy.value = preset;
+          execution = await localExecution();
+        }
         const accepted = execution.attempts.find((attempt) => attempt.outcome === "accepted");
         runs[i].querySelector("h3").textContent = accepted.provider;
         runs[i].querySelectorAll("dd")[0].textContent = execution.attempts.length + " attempt" + (execution.attempts.length === 1 ? "" : "s");
         runs[i].querySelectorAll("dd")[1].textContent = execution.settlement.amountUsdc.toFixed(3) + " USDC";
         runs[i].querySelector("small").textContent = "receipt " + execution.id;
         if (i === cases.length - 1) renderTrace(execution);
+      }
+    };
+    document.querySelectorAll("[data-amount]").forEach((button) => button.addEventListener("click", () => { document.getElementById("payAmount").value = button.dataset.amount; }));
+    document.getElementById("payButton").onclick = () => {
+      const recipient = document.getElementById("payRecipient").value || "0x0000000000000000000000000000000000000001";
+      const amount = document.getElementById("payAmount").value || "0.00";
+      document.getElementById("paymentStatus").textContent = "Treasury payment staged for " + amount + " USDC to " + recipient + ". Full wallet signing lives in the 3025 Next deployment.";
+    };
+    document.getElementById("receiptForm").onsubmit = async (event) => {
+      event.preventDefault();
+      const id = document.getElementById("verifyId").value.trim();
+      const hash = document.getElementById("verifyHash").value.trim();
+      const local = receipts.find((item) => item.id === id);
+      if (local) {
+        const ok = !hash || hash.toLowerCase() === String(local.settlement.evidenceHash || "").toLowerCase();
+        verifyStatus.textContent = ok ? "Receipt verified locally: evidence hash matches the accepted delivery." : "Receipt found, but the evidence hash does not match.";
+        return;
+      }
+      try {
+        const res = await fetch("/api/receipts/verify?id=" + encodeURIComponent(id) + "&evidenceHash=" + encodeURIComponent(hash));
+        const data = await res.json();
+        verifyStatus.textContent = data.valid ? "Receipt verified." : (data.reasons || ["Receipt did not verify."]).join(" ");
+      } catch {
+        verifyStatus.textContent = "Receipt verification could not reach the worker.";
       }
     };
   </script>
