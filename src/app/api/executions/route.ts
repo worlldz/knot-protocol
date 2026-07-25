@@ -5,7 +5,7 @@ import { createAgentAuthorizationMessage, isAgentAuthorizationFresh } from "@/li
 import { executeJob } from "@/lib/knot/engine";
 import { consumeRateLimit } from "@/lib/knot/rate-limit";
 import { createExecutionSchema } from "@/lib/knot/schemas";
-import { listExecutions, saveExecution } from "@/lib/knot/store";
+import { getExecution, saveExecution } from "@/lib/knot/store";
 
 export const runtime = "nodejs";
 
@@ -30,8 +30,8 @@ export async function GET(request: Request) {
   if (!ids?.length) {
     return NextResponse.json({ executions: [] });
   }
-  const wanted = new Set(ids);
-  const executions = (await listExecutions(100)).filter((item) => wanted.has(item.id));
+  const executions = (await Promise.all(ids.map((id) => getExecution(id))))
+    .filter((item) => item !== null);
   return NextResponse.json({ executions });
 }
 

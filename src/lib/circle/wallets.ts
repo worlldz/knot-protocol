@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
 import { createEIP1193Provider } from "@circle-fin/developer-controlled-wallets/evm";
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits, type Address, type Hex } from "viem";
+import { getEnvValue } from "../server-env";
 
 const ARC_BLOCKCHAIN = "ARC-TESTNET";
 const ARC_CHAIN_ID = 5_042_002;
@@ -28,8 +29,8 @@ export type AgentWallet = {
 };
 
 function getCircleClient() {
-  const apiKey = process.env.CIRCLE_API_KEY;
-  const entitySecret = process.env.CIRCLE_ENTITY_SECRET;
+  const apiKey = getEnvValue("CIRCLE_API_KEY");
+  const entitySecret = getEnvValue("CIRCLE_ENTITY_SECRET");
 
   if (!apiKey || !entitySecret) {
     throw new Error("Circle developer wallet credentials are not configured.");
@@ -39,7 +40,7 @@ function getCircleClient() {
 }
 
 function getWalletSetId() {
-  const walletSetId = process.env.CIRCLE_WALLET_SET_ID;
+  const walletSetId = getEnvValue("CIRCLE_WALLET_SET_ID");
   if (!walletSetId) throw new Error("Circle wallet set is not configured.");
   return walletSetId;
 }
@@ -119,8 +120,8 @@ export async function ensureCircleAgentGatewayBalance(
     throw new Error(`Agent needs ${GATEWAY_DEPOSIT_USDC} USDC in its wallet before Gateway can be funded.`);
   }
 
-  const apiKey = process.env.CIRCLE_API_KEY;
-  const entitySecret = process.env.CIRCLE_ENTITY_SECRET;
+  const apiKey = getEnvValue("CIRCLE_API_KEY");
+  const entitySecret = getEnvValue("CIRCLE_ENTITY_SECRET");
   if (!apiKey || !entitySecret) throw new Error("Circle developer wallet credentials are not configured.");
   const provider = createEIP1193Provider({ apiKey, entitySecret, chain: ARC_CHAIN_ID, txPollingTimeout: 60_000 });
   const send = (to: Address, data: Hex) => provider.request({

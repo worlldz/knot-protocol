@@ -1,4 +1,13 @@
-import { formatUnits, parseUnits, toHex } from "viem";
+import {
+  decodeFunctionResult,
+  encodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  parseUnits,
+  toHex,
+  type Address,
+  type Hex,
+} from "viem";
 
 export const ARC_TESTNET = {
   id: 5_042_002,
@@ -12,6 +21,39 @@ export const ARC_TESTNET = {
     decimals: 18,
   },
 } as const;
+
+export const ARC_PAYMENT_ASSETS = {
+  USDC: {
+    symbol: "USDC",
+    name: "USD Coin",
+    address: "0x3600000000000000000000000000000000000000",
+    decimals: 6,
+    role: "Native gas and dollar settlement",
+  },
+  EURC: {
+    symbol: "EURC",
+    name: "Euro Coin",
+    address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
+    decimals: 6,
+    role: "Euro-denominated settlement",
+  },
+  cirBTC: {
+    symbol: "cirBTC",
+    name: "Circle Wrapped Bitcoin",
+    address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
+    decimals: 8,
+    role: "Bitcoin-denominated testnet value",
+  },
+} as const satisfies Record<string, {
+  symbol: string;
+  name: string;
+  address: Address;
+  decimals: number;
+  role: string;
+}>;
+
+export type ArcPaymentAssetId = keyof typeof ARC_PAYMENT_ASSETS;
+export type ArcPaymentAsset = (typeof ARC_PAYMENT_ASSETS)[ArcPaymentAssetId];
 
 export function getArcRpcUrl(value = process.env.ARC_RPC_URL) {
   const normalized = value?.replace(/^\uFEFF/, "").trim();
@@ -74,6 +116,51 @@ export function parseArcPaymentAmount(value: string) {
   const normalized = value.trim();
   if (!normalized || Number(normalized) <= 0) throw new Error("Enter an amount greater than zero.");
   return toHex(parseUnits(normalized, ARC_TESTNET.nativeCurrency.decimals));
+}
+
+export function createArcTokenTransfer(asset: ArcPaymentAsset, recipient: string, value: string) {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(recipient)) throw new Error("Enter a valid recipient wallet.");
+  const normalized = value.trim();
+  if (!normalized || Number(normalized) <= 0) throw new Error("Enter an amount greater than zero.");
+  return {
+    to: asset.address,
+    data: encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [recipient as Address, parseUnits(normalized, asset.decimals)],
+    }),
+  };
+}
+
+export async function readArcTokenBalance(
+  provider: Eip1193Provider,
+  account: string,
+  asset: ArcPaymentAsset,
+) {
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [account as Address],
+  });
+  const result = await provider.request({
+    method: "eth_call",
+    params: [{ to: asset.address, data }, "latest"],
+  });
+  if (typeof result !== "string" || !result.startsWith("0x")) {
+    throw new Error(`${asset.symbol} balance could not be read.`);
+  }
+  const balance = decodeFunctionResult({
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    data: result as Hex,
+  });
+  return {
+    raw: balance,
+    formatted: Number(formatUnits(balance, asset.decimals)).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: asset.symbol === "cirBTC" ? 8 : 4,
+    }),
+  };
 }
 
 export function shortAddress(address: string) {

@@ -3,10 +3,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { executeJob } from "./engine";
-import { getDataFile, getExecution, saveExecution } from "./store";
+import { getDataFile, getExecution, hasDurableReceiptStore, saveExecution } from "./store";
 
 const originalDataFile = process.env.KNOT_DATA_FILE;
 const originalVercel = process.env.VERCEL;
+const originalBlobToken = process.env.BLOB_READ_WRITE_TOKEN;
+const originalBlobStoreId = process.env.BLOB_STORE_ID;
 
 afterEach(() => {
   if (originalDataFile === undefined) {
@@ -19,6 +21,10 @@ afterEach(() => {
   } else {
     process.env.VERCEL = originalVercel;
   }
+  if (originalBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN = originalBlobToken;
+  if (originalBlobStoreId === undefined) delete process.env.BLOB_STORE_ID;
+  else process.env.BLOB_STORE_ID = originalBlobStoreId;
 });
 
 describe("execution store", () => {
@@ -45,5 +51,10 @@ describe("execution store", () => {
     process.env.VERCEL = "1";
 
     expect(getDataFile()).toBe(join(tmpdir(), "knot-data", "executions.json"));
+  });
+
+  it("recognizes a formatted Vercel Blob token as durable storage", () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "\uFEFFvercel_blob_rw_example ";
+    expect(hasDurableReceiptStore()).toBe(true);
   });
 });

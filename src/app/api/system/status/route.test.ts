@@ -30,9 +30,9 @@ describe("GET /api/system/status", () => {
   it("reports deployment proof without leaking configured secrets", async () => {
     process.env.X402_BUYER_PRIVATE_KEY = `\uFEFF0x${"11".repeat(32)} `;
     process.env.X402_SELLER_ADDRESS = " 0x0000000000000000000000000000000000000001 ";
-    process.env.CIRCLE_API_KEY = "circle-secret-key";
-    process.env.CIRCLE_ENTITY_SECRET = "circle-entity-secret";
-    process.env.CIRCLE_WALLET_SET_ID = "circle-wallet-set";
+    process.env.CIRCLE_API_KEY = `\uFEFFTEST_API_KEY:${"a".repeat(32)}:${"b".repeat(32)} `;
+    process.env.CIRCLE_ENTITY_SECRET = `"${"c".repeat(64)}"`;
+    process.env.CIRCLE_WALLET_SET_ID = "\uFEFFf6ee2974-1230-5ac5-a768-5984a0f0533e ";
     process.env.KNOT_HOOK_ADDRESS = "0x73b00398580ba7a19ffb7a5677cf3970e15918d5";
     process.env.KNOT_ATTESTER_PRIVATE_KEY = `"0x${"22".repeat(32)}"`;
     process.env.KNOT_EXECUTION_API_KEY = "execution-secret-key";
@@ -64,6 +64,6 @@ describe("GET /api/system/status", () => {
       },
     });
     expect(serialized).not.toContain("secret");
-    expect(serialized).not.toContain("circle-wallet-set");
+    expect(serialized).not.toContain("f6ee2974");
   });
 });

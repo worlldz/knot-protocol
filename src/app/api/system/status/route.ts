@@ -3,16 +3,21 @@ import { isAddress } from "viem";
 import arcDeployment from "../../../../../deployments/arc-testnet.json";
 import erc8183Run from "../../../../../deployments/erc8183-testnet.json";
 import { isAttestationConfigured } from "../../../../lib/knot/attestation";
+import { hasDurableReceiptStore } from "../../../../lib/knot/store";
 import { getEnvValue, getFirstHexEnv } from "../../../../lib/server-env";
 
 export function GET() {
   const x402SellerAddress = getEnvValue("X402_SELLER_ADDRESS");
   const x402BuyerReady = Boolean(getFirstHexEnv("X402_BUYER_PRIVATE_KEY"));
   const x402SellerReady = Boolean(x402SellerAddress && isAddress(x402SellerAddress));
+  const circleApiKey = getEnvValue("CIRCLE_API_KEY");
+  const circleEntitySecret = getEnvValue("CIRCLE_ENTITY_SECRET");
+  const circleWalletSetId = getEnvValue("CIRCLE_WALLET_SET_ID");
+  const circleAgentConfigured = Boolean(circleApiKey && circleEntitySecret && circleWalletSetId);
   const circleAgentReady = Boolean(
-    getEnvValue("CIRCLE_API_KEY")
-    && getEnvValue("CIRCLE_ENTITY_SECRET")
-    && getEnvValue("CIRCLE_WALLET_SET_ID"),
+    circleApiKey?.split(":").length === 3
+    && /^[0-9a-f]{64}$/i.test(circleEntitySecret ?? "")
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(circleWalletSetId ?? ""),
   );
   const hookAddress = getEnvValue("KNOT_HOOK_ADDRESS");
   const contractReady = Boolean(hookAddress && isAddress(hookAddress));
@@ -40,10 +45,18 @@ export function GET() {
       verificationEngine: "ready",
       x402Buyer: x402BuyerReady ? "ready" : "configuration-required",
       x402Seller: x402SellerReady ? "ready" : "configuration-required",
-      circleAgent: circleAgentReady ? "ready" : "configuration-required",
+      circleAgent: circleAgentReady
+        ? "ready"
+        : circleAgentConfigured
+          ? "configuration-invalid"
+          : "configuration-required",
       settlementHook: contractReady ? "ready" : "not-deployed",
       evidenceAttester: isAttestationConfigured() ? "ready" : "configuration-required",
-      durableReceipts: "ready",
+      durableReceipts: hasDurableReceiptStore()
+        ? "ready"
+        : process.env.VERCEL
+          ? "ephemeral-fallback"
+          : "local-file",
       protocolApi: protocolApiReady ? "protected" : "disabled",
     },
   });

@@ -4,13 +4,17 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAddress } from "viem";
 import {
+  ARC_PAYMENT_ASSETS,
   ARC_TESTNET,
+  createArcTokenTransfer,
   formatArcBalance,
   getInjectedProvider,
   parseArcPaymentAmount,
   parseChainId,
+  readArcTokenBalance,
   requestDifferentAccount,
   shortAddress,
+  type ArcPaymentAssetId,
 } from "@/lib/arc-network";
 import { createAgentAuthorizationMessage, isAgentAuthorizationFresh } from "@/lib/knot/agent-auth";
 import { JOB_TYPES, POLICY_PRESETS } from "@/lib/knot/catalog";
@@ -69,6 +73,14 @@ type QuoteState = {
   quote?: ExecutionQuote;
   error?: string;
 };
+type PlaygroundEndpoint = "status" | "marketplace" | "quote" | "execution";
+type PlaygroundResponse = {
+  status: "idle" | "loading" | "success" | "error";
+  httpStatus?: number;
+  latencyMs?: number;
+  receiptId?: string;
+  body: string;
+};
 type AgentWallet = { id: string; address: string; owner: string; accountType: string; blockchain: "ARC-TESTNET"; balanceUsdc: string; gatewayBalanceUsdc: string };
 type AgentWalletState = {
   wallet: AgentWallet | null;
@@ -121,6 +133,80 @@ const marketplaceProviders = [
   { id: "03", name: "Arc Veritas", tier: "Code-aware", price: "0.045", fee: "0.000540", total: "0.045540", fit: "Premium strict-policy proof for treasury and contracts." },
 ] as const;
 
+const playgroundEndpoints: Record<PlaygroundEndpoint, {
+  label: string;
+  method: "GET" | "POST";
+  path: string;
+  summary: string;
+  body?: Record<string, unknown>;
+}> = {
+  status: {
+    label: "Rail status",
+    method: "GET",
+    path: "/api/system/status",
+    summary: "Read the live readiness of KNOT, Circle, x402, Arc anchoring, and receipt storage.",
+  },
+  marketplace: {
+    label: "Providers",
+    method: "GET",
+    path: "/api/marketplace",
+    summary: "Inspect provider supply, policy products, quotes, and accepted-settlement economics.",
+  },
+  quote: {
+    label: "Preflight quote",
+    method: "POST",
+    path: "/api/quote",
+    summary: "Ask KNOT how it would route an obligation before any provider is paid.",
+    body: {
+      jobType: "treasury",
+      policyPreset: "strict",
+      task: "Decide whether an autonomous treasury agent can release a small USDC payment.",
+      subject: demoSubject,
+      maxPriceUsdc: 0.05,
+      maxLatencyMs: 1400,
+      maxAgeSeconds: 90,
+      requiredFields: ["risk", "confidence", "observedAt", "balanceUsdc", "transactionCount"],
+      requireSignature: true,
+    },
+  },
+  execution: {
+    label: "Proof run",
+    method: "POST",
+    path: "/api/executions",
+    summary: "Run the public proof path and receive a typed receipt without spending a connected wallet.",
+    body: {
+      jobType: "counterparty",
+      policyPreset: "balanced",
+      task: "Assess an Arc wallet and return signed, current risk evidence.",
+      subject: demoSubject,
+      maxPriceUsdc: 0.03,
+      maxLatencyMs: 1400,
+      maxAgeSeconds: 90,
+      requiredFields: ["risk", "confidence", "observedAt", "balanceUsdc", "transactionCount"],
+      requireSignature: true,
+    },
+  },
+};
+
+function rememberReceiptId(id: string) {
+  if (typeof window === "undefined") return;
+
+  let receiptIds: string[] = [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem("knot-receipts") ?? "[]") as unknown;
+    receiptIds = Array.isArray(stored)
+      ? stored.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    // A malformed browser cache should never prevent a valid receipt from being retained.
+  }
+
+  window.localStorage.setItem(
+    "knot-receipts",
+    JSON.stringify([id, ...receiptIds.filter((receiptId) => receiptId !== id)].slice(0, 25)),
+  );
+}
+
 function KnotMark() {
   return <span className="knot-mark" aria-hidden="true"><i /><i /></span>;
 }
@@ -139,6 +225,14 @@ function MoonIcon() {
 
 function WalletIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h14.5A1.5 1.5 0 0 1 20 8v10H5.5A2.5 2.5 0 0 1 3 15.5V7a3 3 0 0 1 3-3h11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M15.5 11.5H20v3h-4.5a1.5 1.5 0 0 1 0-3Z" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>;
+}
+
+function AssetIcon({ asset }: { asset: ArcPaymentAssetId }) {
+  if (asset === "cirBTC") {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9 6v12M13.5 6v2M13.5 16v2M8 8h6.2a2.3 2.3 0 0 1 0 4.6H8M8 12.6h6.9a2.5 2.5 0 0 1 0 5H8" /></svg>;
+  }
+  const glyph = asset === "EURC" ? "EUR" : "USD";
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><text x="12" y="14.7" textAnchor="middle">{glyph}</text></svg>;
 }
 
 function ExternalIcon() {
@@ -404,9 +498,18 @@ function useAgentWallet(wallet: ReturnType<typeof useArcWallet>): AgentWalletSta
       headers: { "content-type": "application/json" },
       body: JSON.stringify(auth),
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? "Agent wallet could not be prepared.");
-    const prepared = data.wallet as AgentWallet;
+    const data = await response.json().catch(() => ({})) as {
+      error?: string;
+      code?: string;
+      retryable?: boolean;
+      wallet?: AgentWallet;
+    };
+    if (!response.ok) {
+      const retry = data.retryable ? " Retry in a moment; proof preview remains available." : "";
+      throw new Error(`${data.error ?? "Agent wallet could not be prepared."}${retry}`);
+    }
+    if (!data.wallet) throw new Error("Agent wallet response was incomplete. Retry in a moment.");
+    const prepared = data.wallet;
     setAgentWallet(prepared);
     return prepared;
   }, []);
@@ -547,6 +650,76 @@ function NetworkRibbon({ wallet, agent }: { wallet: ReturnType<typeof useArcWall
       <div className="ribbon-metric"><i className="metric-glyph">M</i><span><small>Agent wallet</small><b>{agent.wallet ? `${Number(agent.wallet.balanceUsdc).toFixed(3)} USDC` : "Not activated"}</b></span></div>
       <div className="ribbon-metric"><i className="metric-glyph">402</i><span><small>Gateway balance</small><b>{agent.wallet ? `${Number(agent.wallet.gatewayBalanceUsdc).toFixed(3)} USDC` : "x402 live"}</b></span></div>
       <button type="button" className={`ribbon-action ${agent.wallet ? "is-agent-ready" : ""}`} onClick={() => void action()} disabled={wallet.busy || agent.busy || agent.funding}>{actionLabel}<ArrowIcon /></button>
+      {agent.error && <div className="ribbon-error" role="alert"><span>{agent.error}</span><button type="button" onClick={() => void action()} disabled={agent.busy || agent.funding}>Retry <ArrowIcon /></button></div>}
+    </section>
+  );
+}
+
+function TraceStandby({
+  maxPrice,
+  maxAge,
+  requireSignature,
+  quote,
+}: {
+  maxPrice: string;
+  maxAge: number;
+  requireSignature: boolean;
+  quote?: ExecutionQuote;
+}) {
+  const route = quote?.route.filter((provider) => provider.canSatisfy) ?? [];
+  return (
+    <div className="trace-standby">
+      <div className="standby-radar" aria-hidden="true">
+        <i className="standby-orbit orbit-a" />
+        <i className="standby-orbit orbit-b" />
+        <i className="standby-sweep" />
+        <span className="standby-core"><KnotMark /><b>{quote ? "ROUTE READY" : "PAYMENT LOCKED"}</b></span>
+        <span className="standby-node node-price">PRICE</span>
+        <span className="standby-node node-proof">PROOF</span>
+        <span className="standby-node node-route">ROUTE</span>
+      </div>
+      <div className="standby-copy">
+        <span>PRE-SETTLEMENT GUARD</span>
+        <h3>{quote ? `${route.length || quote.route.length} provider route prepared.` : "Nothing moves before evidence clears."}</h3>
+        <p>{quote ? "The market route fits this obligation. Run the proof to test the delivery and unlock settlement." : "Quote the market or run the obligation. KNOT will preserve every rejected offer, fallback decision, and accepted proof."}</p>
+      </div>
+      <dl className="standby-policy">
+        <div><dt>Maximum spend</dt><dd>{Number(maxPrice || 0).toFixed(3)} USDC</dd></div>
+        <div><dt>Freshness</dt><dd>{maxAge}s or newer</dd></div>
+        <div><dt>Provider proof</dt><dd>{requireSignature ? "Signature required" : "Optional"}</dd></div>
+        <div><dt>Settlement</dt><dd>Locked until pass</dd></div>
+      </dl>
+    </div>
+  );
+}
+
+function ExecutionBrief({
+  system,
+  completed,
+}: {
+  system: SystemStatus | null;
+  completed: boolean;
+}) {
+  const commerce = system?.deployment.commerce ?? "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
+  return (
+    <section className="execution-brief" aria-label="KNOT execution contract">
+      <div className="execution-brief-heading">
+        <div><span>{completed ? "TRACE SEALED" : "WHAT KNOT ENFORCES"}</span><h3>{completed ? "The decision now has an audit trail." : "A payment policy, not another prompt."}</h3></div>
+        <i><SignalIcon kind={completed ? "settle" : "verify"} /></i>
+      </div>
+      <div className="execution-brief-signal" aria-hidden="true">
+        <span>INTENT</span><i /><span>MARKET</span><i /><span>PROOF</span><i /><span>PAYMENT</span><b />
+      </div>
+      <div className="execution-brief-grid">
+        <article><span>01</span><strong>Compete</strong><p>Eligible providers quote the same measurable obligation.</p></article>
+        <article><span>02</span><strong>Verify</strong><p>Stale, unsigned, slow, or malformed work is rejected without payment.</p></article>
+        <article><span>03</span><strong>Bind</strong><p>The accepted evidence hash becomes part of the settlement receipt.</p></article>
+      </div>
+      <a className="execution-proof-link" href={`${ARC_TESTNET.explorerUrl}/address/${commerce}#code`} target="_blank" rel="noreferrer">
+        <span><i />LIVE ON ARC TESTNET</span>
+        <code>{shortAddress(commerce)}</code>
+        <b>Inspect contract <ExternalIcon /></b>
+      </a>
     </section>
   );
 }
@@ -634,17 +807,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
     }
   }
 
-  function rememberReceipt(id: string) {
-    const stored = JSON.parse(window.localStorage.getItem("knot-receipts") ?? "[]") as unknown;
-    const receiptIds = Array.isArray(stored)
-      ? stored.filter((item): item is string => typeof item === "string")
-      : [];
-    window.localStorage.setItem(
-      "knot-receipts",
-      JSON.stringify([id, ...receiptIds.filter((receiptId) => receiptId !== id)].slice(0, 25)),
-    );
-  }
-
   async function requestExecution(input: {
     jobType: JobType;
     policyPreset: PolicyPreset;
@@ -665,7 +827,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? "Execution could not be created.");
     const nextExecution = data as Execution;
-    rememberReceipt(nextExecution.id);
+    rememberReceiptId(nextExecution.id);
     return nextExecution;
   }
 
@@ -917,11 +1079,14 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           {(error || agent.error) && <p className="error-message" role="alert">{error ?? agent.error}</p>}
         </article>
 
-        <article className="trace-panel" ref={tracePanelRef}>
-          <div className="trace-header"><div><span>Agent execution</span><h2>Clearing trace</h2></div><div className="trace-head-actions">{busy && <div className="trace-hourglass"><HourglassIcon /><span>VERIFYING</span></div>}<div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>Events</span></div></div></div>
-          {visibleTrace.length === 0 ? <div className="trace-empty"><KnotMark /><p>The clearing engine is standing by.</p><span>Run the obligation to inspect every decision</span></div> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
-          <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
-        </article>
+        <div className="execution-column">
+          <article className="trace-panel" ref={tracePanelRef}>
+            <div className="trace-header"><div><span>Agent execution</span><h2>Clearing trace</h2></div><div className="trace-head-actions">{busy && <div className="trace-hourglass"><HourglassIcon /><span>VERIFYING</span></div>}<div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>Events</span></div></div></div>
+            {visibleTrace.length === 0 ? <TraceStandby maxPrice={maxPrice} maxAge={maxAge} requireSignature={requireSignature} quote={currentQuoteState.quote} /> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
+            <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
+          </article>
+          <ExecutionBrief system={system} completed={completed} />
+        </div>
       </section>
 
       {completed && <RiskReport attempt={acceptedAttempt} />}
@@ -1115,8 +1280,34 @@ function ReceiptsView({ system }: { system: SystemStatus | null }) {
 function PaymentView({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
+  const [assetId, setAssetId] = useState<ArcPaymentAssetId>("USDC");
+  const [assetBalance, setAssetBalance] = useState("0.00");
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const [payment, setPayment] = useState<PaymentState>({ kind: "idle", message: "" });
   const correctChain = wallet.chainId === ARC_TESTNET.id;
+  const selectedAsset = ARC_PAYMENT_ASSETS[assetId];
+
+  const refreshAssetBalance = useCallback(async () => {
+    const provider = getInjectedProvider();
+    if (!provider || !wallet.account || !correctChain) {
+      setAssetBalance("0.00");
+      return;
+    }
+    setBalanceLoading(true);
+    try {
+      const balance = await readArcTokenBalance(provider, wallet.account, selectedAsset);
+      setAssetBalance(balance.formatted);
+    } catch {
+      setAssetBalance("Unavailable");
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [correctChain, selectedAsset, wallet.account]);
+
+  useEffect(() => {
+    const refreshTimer = window.setTimeout(() => void refreshAssetBalance(), 0);
+    return () => window.clearTimeout(refreshTimer);
+  }, [refreshAssetBalance]);
 
   async function sendPayment() {
     setPayment({ kind: "idle", message: "" });
@@ -1127,13 +1318,17 @@ function PaymentView({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
     if (!sender) return;
     if (!isAddress(recipient)) return setPayment({ kind: "error", message: "Enter a valid 0x wallet address." });
     try {
-      const value = parseArcPaymentAmount(amount);
+      const transfer = createArcTokenTransfer(selectedAsset, recipient, amount);
       if (wallet.chainId !== ARC_TESTNET.id && !(await wallet.addOrSwitchArc())) return;
-      setPayment({ kind: "pending", message: "Review and sign the payment in your wallet." });
-      const hash = await provider.request({ method: "eth_sendTransaction", params: [{ from: sender, to: recipient, value }] });
+      setPayment({ kind: "pending", message: `Review the ${selectedAsset.symbol} transfer in your wallet.` });
+      const hash = await provider.request({
+        method: "eth_sendTransaction",
+        params: [{ from: sender, to: transfer.to, data: transfer.data }],
+      });
       if (typeof hash !== "string") throw new Error("The wallet did not return a transaction hash.");
-      setPayment({ kind: "success", message: "Payment submitted to Arc Testnet.", hash });
+      setPayment({ kind: "success", message: `${selectedAsset.symbol} transfer submitted to Arc Testnet.`, hash });
       await wallet.refresh();
+      await refreshAssetBalance();
     } catch (cause) {
       setPayment({ kind: "error", message: cause instanceof Error ? cause.message : "The payment was not submitted." });
     }
@@ -1142,37 +1337,58 @@ function PaymentView({ wallet }: { wallet: ReturnType<typeof useArcWallet> }) {
   return (
     <section className="view-page page-shell">
       <div className="view-hero">
-        <div><span className="eyebrow">DIRECT SETTLEMENT / ARC TESTNET</span><h1>Send USDC.<br /><em>Without the extra token.</em></h1></div>
-        <p>Arc uses USDC as native gas and native value. Connect a wallet, select Arc Testnet, and send a direct payment with one standard EVM signature.</p>
+        <div><span className="eyebrow">MULTI-ASSET TREASURY / ARC TESTNET</span><h1>Move value.<br /><em>Keep gas simple.</em></h1></div>
+        <p>Send USDC, EURC, or cirBTC through one focused treasury surface. Arc keeps network fees in USDC while each transfer remains denominated in the asset you selected.</p>
       </div>
 
       <div className="payment-layout">
         <article className="payment-form panel-light">
-          <div className="section-heading"><div><span>Native transfer</span><h2>Send payment</h2></div><span className="asset-chip">USDC</span></div>
+          <div className="section-heading"><div><span>Arc asset transfer</span><h2>Send payment</h2></div><span className="asset-chip">{selectedAsset.symbol}</span></div>
+          <div className="asset-selector" role="group" aria-label="Payment asset">
+            {(Object.keys(ARC_PAYMENT_ASSETS) as ArcPaymentAssetId[]).map((candidate) => {
+              const asset = ARC_PAYMENT_ASSETS[candidate];
+              return (
+                <button
+                  type="button"
+                  className={assetId === candidate ? "active" : ""}
+                  key={candidate}
+                  onClick={() => {
+                    setAssetId(candidate);
+                    setAmount("");
+                    setPayment({ kind: "idle", message: "" });
+                  }}
+                >
+                  <i><AssetIcon asset={candidate} /></i>
+                  <span><strong>{asset.symbol}</strong><small>{asset.name}</small></span>
+                </button>
+              );
+            })}
+          </div>
           <label className="payment-label" htmlFor="recipient">Recipient wallet</label>
           <input id="recipient" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="0x..." autoComplete="off" />
           <label className="payment-label" htmlFor="amount">Amount</label>
-          <div className="amount-field"><input id="amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /><span>USDC</span></div>
-          <div className="amount-presets">{["1", "5", "10", "25"].map((value) => <button type="button" key={value} onClick={() => setAmount(value)}>{value} USDC</button>)}</div>
-          <button className="payment-button" type="button" onClick={() => void sendPayment()} disabled={payment.kind === "pending"}>{payment.kind === "pending" ? "Waiting for wallet" : wallet.account ? "Send on Arc" : "Connect and send"}<ArrowIcon /></button>
+          <div className="amount-field"><input id="amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /><span>{selectedAsset.symbol}</span></div>
+          <div className="amount-presets">{(assetId === "cirBTC" ? ["0.001", "0.005", "0.01", "0.05"] : ["1", "5", "10", "25"]).map((value) => <button type="button" key={value} onClick={() => setAmount(value)}>{value} {selectedAsset.symbol}</button>)}</div>
+          <div className="asset-context-line"><span>{selectedAsset.role}</span><small>Gas remains USDC</small></div>
+          <button className="payment-button" type="button" onClick={() => void sendPayment()} disabled={payment.kind === "pending"}>{payment.kind === "pending" ? "Waiting for wallet" : wallet.account ? `Send ${selectedAsset.symbol} on Arc` : "Connect and send"}<ArrowIcon /></button>
           {payment.message && <div className={`payment-status is-${payment.kind}`} role="status"><span>{payment.message}</span>{payment.hash && <a href={`${ARC_TESTNET.explorerUrl}/tx/${payment.hash}`} target="_blank" rel="noreferrer">View transaction <ExternalIcon /></a>}</div>}
         </article>
 
         <aside className="payment-context">
           <div className="wallet-overview">
             <div className="wallet-overview-top"><span>Wallet state</span><StatusPill ready={Boolean(wallet.account && correctChain)}>{wallet.account && correctChain ? "READY TO SEND" : "ACTION REQUIRED"}</StatusPill></div>
-            <div className="balance-display"><small>Available on Arc</small><strong>{wallet.account && correctChain ? wallet.balance : "0.00"}<span>USDC</span></strong></div>
+            <div className="balance-display"><small>{selectedAsset.name} available</small><strong>{balanceLoading ? "..." : wallet.account && correctChain ? assetBalance : "0.00"}<span>{selectedAsset.symbol}</span></strong></div>
             <dl><div><dt>Wallet</dt><dd>{wallet.account ? shortAddress(wallet.account) : "Not connected"}</dd></div><div><dt>Network</dt><dd className={wallet.account && !correctChain ? "warning" : ""}>{correctChain ? "Arc Testnet" : wallet.account ? "Wrong network" : "Not selected"}</dd></div><div><dt>Finality</dt><dd>One confirmation</dd></div><div><dt>Gas asset</dt><dd>USDC</dd></div></dl>
-            <div className="wallet-overview-actions"><button type="button" onClick={() => void wallet.connect()} disabled={wallet.busy}>{wallet.account ? "Refresh wallet" : "Connect wallet"}</button><button type="button" onClick={() => void wallet.addOrSwitchArc()} disabled={wallet.busy}>{correctChain ? "Arc selected" : "Add Arc Testnet"}</button></div>
+            <div className="wallet-overview-actions"><button type="button" onClick={() => wallet.account ? void Promise.all([wallet.refresh(), refreshAssetBalance()]) : void wallet.connect()} disabled={wallet.busy || balanceLoading}>{wallet.account ? "Refresh balances" : "Connect wallet"}</button><button type="button" onClick={() => void wallet.addOrSwitchArc()} disabled={wallet.busy}>{correctChain ? "Arc selected" : "Add Arc Testnet"}</button></div>
           </div>
-          <div className="payment-note"><span>Why this feels different</span><p>No separate native token is required for gas. The balance you understand is also the asset that moves value and pays network fees.</p></div>
+          <div className="payment-note"><span>One network, three settlement assets</span><p>USDC handles Arc gas. USDC and EURC cover dollar and euro payments, while cirBTC adds a Bitcoin-denominated test asset without changing the wallet flow.</p></div>
         </aside>
       </div>
 
       <div className="payment-principles">
-        <article><i><SignalIcon kind="settle" /></i><span>01</span><h3>Stable by default</h3><p>Amounts, balances, and fees stay denominated in USDC.</p></article>
+        <article><i><SignalIcon kind="settle" /></i><span>01</span><h3>Asset-aware</h3><p>Choose the settlement unit that matches the payment instead of forcing every transfer into one token.</p></article>
         <article><i><SignalIcon kind="verify" /></i><span>02</span><h3>Deterministic finality</h3><p>One committed Arc block is final, with no reorg waiting window.</p></article>
-        <article><i><SignalIcon kind="intent" /></i><span>03</span><h3>Standard wallet flow</h3><p>Arc remains EVM-compatible, so familiar wallet signing still applies.</p></article>
+        <article><i><SignalIcon kind="intent" /></i><span>03</span><h3>USDC gas throughout</h3><p>EURC and cirBTC transfers still use USDC for network fees, so no extra volatile gas asset is required.</p></article>
       </div>
     </section>
   );
@@ -1186,6 +1402,112 @@ function BuildOnArcBand() {
       <div className="arc-brand-lockup"><small>POWERED BY</small><Image src="/arc-logo-official.webp" alt="Arc" width={260} height={71} style={{ width: "100%", maxWidth: 260, height: "auto" }} priority /></div>
       <div className="x402-signal" aria-hidden="true"><span>HTTP</span><strong>402</strong><span>PAYMENT REQUIRED</span></div>
     </section>
+  );
+}
+
+function DeveloperPlayground() {
+  const [endpoint, setEndpoint] = useState<PlaygroundEndpoint>("quote");
+  const [response, setResponse] = useState<PlaygroundResponse>({
+    status: "idle",
+    body: "Select an operation and run it against this live KNOT deployment.",
+  });
+  const [copied, setCopied] = useState(false);
+  const selected = playgroundEndpoints[endpoint];
+
+  const requestBody = selected.body ? JSON.stringify(selected.body, null, 2) : null;
+  const requestSnippet = selected.method === "GET"
+    ? `fetch("${selected.path}")`
+    : `fetch("${selected.path}", {\n  method: "POST",\n  headers: { "content-type": "application/json" },\n  body: JSON.stringify(${requestBody})\n})`;
+
+  const run = useCallback(async () => {
+    setResponse({ status: "loading", body: "KNOT is processing the request..." });
+    const startedAt = performance.now();
+    try {
+      const apiResponse = await fetch(selected.path, {
+        method: selected.method,
+        headers: selected.body ? { "content-type": "application/json" } : undefined,
+        body: selected.body ? JSON.stringify(selected.body) : undefined,
+      });
+      const raw = await apiResponse.text();
+      let body = raw;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+        body = JSON.stringify(parsed, null, 2);
+      } catch {
+        // Preserve non-JSON responses for debugging.
+      }
+      const receiptId = apiResponse.ok
+        && selected.path === "/api/executions"
+        && parsed
+        && typeof parsed === "object"
+        && "id" in parsed
+        && typeof parsed.id === "string"
+        ? parsed.id
+        : undefined;
+      if (receiptId) rememberReceiptId(receiptId);
+      setResponse({
+        status: apiResponse.ok ? "success" : "error",
+        httpStatus: apiResponse.status,
+        latencyMs: Math.round(performance.now() - startedAt),
+        receiptId,
+        body: body.slice(0, 24_000),
+      });
+    } catch (cause) {
+      setResponse({
+        status: "error",
+        latencyMs: Math.round(performance.now() - startedAt),
+        body: cause instanceof Error ? cause.message : "The request could not be completed.",
+      });
+    }
+  }, [selected]);
+
+  const copyCurl = useCallback(async () => {
+    const origin = window.location.origin;
+    const command = selected.method === "GET"
+      ? `curl "${origin}${selected.path}"`
+      : `curl -X POST "${origin}${selected.path}" -H "content-type: application/json" --data '${JSON.stringify(selected.body)}'`;
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }, [selected]);
+
+  return (
+    <div className="api-workbench">
+      <header>
+        <div><span>LIVE API WORKBENCH</span><h3>Call the protocol, not a mock.</h3></div>
+        <span className={`api-workbench-status is-${response.status}`}><i />{response.status === "loading" ? "RUNNING" : response.httpStatus ? `HTTP ${response.httpStatus}` : "READY"}</span>
+      </header>
+      <div className="api-endpoint-tabs" role="tablist" aria-label="KNOT API examples">
+        {(Object.keys(playgroundEndpoints) as PlaygroundEndpoint[]).map((key) => (
+          <button key={key} type="button" role="tab" aria-selected={endpoint === key} className={endpoint === key ? "active" : ""} onClick={() => { setEndpoint(key); setResponse({ status: "idle", body: "Ready to call the selected endpoint." }); }}>
+            <small>{playgroundEndpoints[key].method}</small>
+            <span>{playgroundEndpoints[key].label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="api-workbench-grid">
+        <section className="api-request-pane">
+          <div className="api-pane-heading"><span>REQUEST</span><code>{selected.method} {selected.path}</code></div>
+          <p>{selected.summary}</p>
+          <pre>{requestSnippet}</pre>
+          <div className="api-request-actions">
+            <button type="button" onClick={() => void run()} disabled={response.status === "loading"}>{response.status === "loading" ? "Running KNOT" : "Run request"} <ArrowIcon /></button>
+            <button type="button" onClick={() => void copyCurl()}>{copied ? "Copied" : "Copy cURL"}</button>
+          </div>
+        </section>
+        <section className="api-response-pane" aria-live="polite">
+          <div className="api-pane-heading">
+            <span>RESPONSE</span>
+            {response.receiptId
+              ? <a href={`/receipt/${response.receiptId}`}>Open receipt <ArrowIcon /></a>
+              : <small>{response.latencyMs ? `${response.latencyMs} ms` : "Awaiting request"}</small>}
+          </div>
+          <pre>{response.body}</pre>
+        </section>
+      </div>
+      <footer><span><i />Public proof calls never spend the connected browser wallet.</span><p>Server agents can add authorization and a personal Circle wallet for live x402 settlement.</p></footer>
+    </div>
   );
 }
 
@@ -1243,22 +1565,7 @@ function ExploreView() {
           <div><span>GET</span><code>/api/manifest</code><small>Read jobs, policies, contracts, examples, and endpoint metadata.</small></div>
           <div><span>GET</span><code>/api/system/status</code><small>Check live rails without exposing configured secrets.</small></div>
         </div>
-        <pre className="developer-snippet">{`const knot = createKnotClient({ baseUrl: KNOT_URL });
-const quote = await knot.quote({
-  jobType: "treasury",
-  policyPreset: "strict",
-  subject: "0x0000000000000000000000000000000000000001",
-  maxPriceUsdc: 0.05
-});
-
-const receipt = await knot.run({
-  jobType: "treasury",
-  policyPreset: "strict",
-  subject: "0x0000000000000000000000000000000000000001",
-  maxPriceUsdc: 0.05
-});
-
-const market = await knot.getMarketplace();`}</pre>
+        <DeveloperPlayground />
         <div className="developer-actions">
           <a href="/.well-known/knot" target="_blank" rel="noreferrer">Agent discovery <ExternalIcon /></a>
           <a href="/api/openapi" target="_blank" rel="noreferrer">OpenAPI <ExternalIcon /></a>
