@@ -798,93 +798,151 @@ function landing() {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KNOT - Verified outcome clearing</title>
+  <title>KNOT | Pay for verified outcomes</title>
   <meta name="description" content="KNOT is a verification-native settlement layer for autonomous commerce on Arc." />
   <style>
-    :root { color-scheme: dark; --bg:#06110d; --panel:#0d1d16; --ink:#f1ffee; --muted:#95a99b; --acid:#d7ff69; --mint:#7dffc3; --line:rgba(255,255,255,.13); --red:#ff7979; --blue:#95baff; }
-    * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:radial-gradient(circle at 15% 0%, rgba(125,255,195,.2), transparent 32rem), radial-gradient(circle at 86% 15%, rgba(215,255,105,.16), transparent 30rem), var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
-    main { width:min(1120px, calc(100% - 32px)); margin:0 auto; padding:48px 0; } nav, .hero, .grid, .panel, footer { border:1px solid var(--line); background:rgba(13,29,22,.76); backdrop-filter: blur(16px); box-shadow: 0 30px 90px rgba(0,0,0,.28); }
-    nav { display:flex; justify-content:space-between; align-items:center; gap:16px; border-radius:999px; padding:12px 16px; } nav strong { letter-spacing:.18em; } nav a, .actions a, footer a { color:var(--ink); text-decoration:none; font-size:13px; font-weight:800; }
-    .hero { margin-top:28px; border-radius:34px; padding:42px; display:grid; grid-template-columns:1.2fr .8fr; gap:28px; overflow:hidden; } h1 { margin:0; font-size:clamp(48px, 8vw, 112px); line-height:.86; letter-spacing:-.08em; } h1 span { display:block; color:var(--acid); } p { color:var(--muted); line-height:1.65; } .hero p { max-width:56ch; font-size:18px; }
-    .proof { display:grid; gap:12px; align-content:start; } .proof div { border:1px solid var(--line); border-radius:22px; padding:18px; background:rgba(255,255,255,.04); } .proof span, .eyebrow { color:var(--mint); font-size:11px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; } .proof b { display:block; margin-top:8px; font-size:28px; }
-    .grid { margin-top:18px; border-radius:28px; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:16px; } .panel { border-radius:24px; padding:22px; background:rgba(6,17,13,.62); } h2 { margin:8px 0 10px; font-size:30px; letter-spacing:-.04em; } label { display:grid; gap:8px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.1em; } input, select, button { width:100%; border:1px solid var(--line); border-radius:14px; background:#081611; color:var(--ink); padding:13px 14px; font:inherit; } button { margin-top:12px; background:var(--acid); color:#09120e; border:0; font-weight:900; cursor:pointer; }
-    pre { white-space:pre-wrap; word-break:break-word; border:1px solid var(--line); border-radius:18px; background:#07130f; padding:16px; color:#c8ffd9; min-height:160px; } .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; } .actions a { border:1px solid var(--line); border-radius:999px; padding:10px 13px; background:rgba(255,255,255,.04); }
-    .launch-room { margin-top:18px; border:1px solid var(--line); border-radius:30px; padding:22px; background:linear-gradient(135deg, rgba(215,255,105,.1), rgba(13,29,22,.8) 42%, rgba(149,186,255,.09)); display:grid; grid-template-columns:1.05fr .95fr; gap:16px; box-shadow:0 30px 90px rgba(0,0,0,.28); }
-    .launch-copy { border:1px solid var(--line); border-radius:24px; padding:24px; background:rgba(6,17,13,.62); } .launch-copy h2 { font-size:42px; line-height:.96; } .launch-copy ul, .kit-list { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:10px; } .launch-copy li, .kit-list li { display:flex; gap:10px; color:var(--muted); line-height:1.5; } .launch-copy li:before, .kit-list li:before { content:""; width:7px; height:7px; margin-top:8px; flex:0 0 7px; border-radius:50%; background:var(--acid); box-shadow:0 0 16px rgba(215,255,105,.4); }
-    .launch-metrics { display:grid; gap:12px; } .metric-card { border:1px solid var(--line); border-radius:20px; padding:18px; background:rgba(255,255,255,.045); } .metric-card span { color:var(--blue); font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; } .metric-card strong { display:block; margin-top:7px; font-size:24px; } .metric-card small { display:block; margin-top:8px; color:var(--muted); line-height:1.5; }
-    .kit-row { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; } .kit-row a { border:1px solid var(--line); border-radius:18px; padding:16px; color:var(--ink); text-decoration:none; background:rgba(255,255,255,.04); } .kit-row span { display:block; color:var(--mint); font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; } .kit-row b { display:block; margin-top:7px; font-size:16px; } .kit-row small { display:block; margin-top:7px; color:var(--muted); line-height:1.45; }
-    footer { margin-top:18px; border-radius:24px; padding:18px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; color:var(--muted); } code { color:var(--acid); }
-    @media (max-width: 900px) { .hero, .grid, .launch-room, .kit-row { grid-template-columns:1fr; } .hero { padding:28px; } nav { align-items:flex-start; border-radius:24px; flex-direction:column; } }
+    :root { color-scheme: dark; --paper:#07100d; --paper2:#0b1511; --panel:rgba(15,27,22,.82); --panel2:#101d18; --ink:#eff8ee; --soft:#c8d5cd; --muted:#8fa198; --line:rgba(226,246,234,.13); --line2:rgba(226,246,234,.24); --acid:#cbff4a; --mint:#5cf0bb; --blue:#79a7ff; --red:#ff806c; --shadow:rgba(0,0,0,.36); }
+    * { box-sizing:border-box; } html { background:var(--paper); scroll-behavior:smooth; } body { margin:0; min-width:320px; min-height:100vh; color:var(--ink); font-family:"Aptos","Segoe UI Variable","Trebuchet MS",system-ui,sans-serif; background:radial-gradient(circle at 8% 2%, rgba(203,255,74,.13), transparent 29rem), radial-gradient(circle at 94% 11%, rgba(92,240,187,.12), transparent 32rem), linear-gradient(145deg,var(--paper),var(--paper2) 58%,var(--paper)); }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; z-index:-1; opacity:.72; background-image:linear-gradient(rgba(220,246,231,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(220,246,231,.035) 1px,transparent 1px); background-size:46px 46px; mask-image:linear-gradient(to bottom,black,transparent 82%); }
+    button,input,select,textarea { font:inherit; } button { color:inherit; cursor:pointer; } a { color:inherit; }
+    .shell { width:min(1580px,calc(100% - 48px)); margin-inline:auto; }
+    .header { position:sticky; top:0; z-index:20; border-bottom:1px solid var(--line); background:rgba(7,16,13,.82); backdrop-filter:blur(24px) saturate(150%); }
+    .nav { min-height:84px; display:grid; grid-template-columns:auto 1fr auto; gap:28px; align-items:center; }
+    .brand { display:flex; align-items:center; gap:13px; text-decoration:none; } .mark { position:relative; width:39px; height:39px; border-radius:50%; background:var(--ink); overflow:hidden; box-shadow:inset 0 0 0 1px rgba(7,16,13,.2); } .mark:before,.mark:after { content:""; position:absolute; inset:9px 11px; border:2px solid var(--acid); border-radius:50% 50% 45% 55%; transform:rotate(38deg); } .mark:after { border-color:var(--mint); transform:rotate(-38deg); }
+    .brand b { display:block; font-size:15px; letter-spacing:.19em; } .brand small { display:block; margin-top:2px; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.12em; }
+    .tabs { justify-self:center; display:flex; gap:4px; padding:5px; border:1px solid var(--line); border-radius:999px; background:rgba(16,29,24,.72); box-shadow:0 10px 35px var(--shadow); }
+    .tabs a { border-radius:999px; padding:10px 15px; color:var(--muted); text-decoration:none; font-size:12px; font-weight:800; } .tabs a:first-child { color:#0b1611; background:var(--acid); box-shadow:0 6px 20px rgba(203,255,74,.25); }
+    .wallet { display:flex; gap:6px; } .wallet span { min-height:48px; display:flex; flex-direction:column; justify-content:center; border:1px solid var(--line); background:var(--panel); padding:8px 13px; } .wallet span:first-child { border-radius:14px 7px 7px 14px; min-width:145px; } .wallet span:last-child { border-radius:7px 14px 14px 7px; min-width:150px; } .wallet small { color:var(--muted); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; } .wallet b { font-size:13px; }
+    .hero { padding-block:72px 64px; } .kicker { display:flex; align-items:center; gap:18px; margin-bottom:32px; color:var(--muted); font-size:11px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; } .kicker span { display:grid; place-items:center; width:30px; height:30px; border:1px solid var(--line); border-radius:50%; font-size:9px; }
+    .hero-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(500px,.65fr); gap:58px; align-items:center; } h1 { margin:0; font-family:"Bahnschrift","Aptos Display",sans-serif; font-size:clamp(4.2rem,7.15vw,8rem); font-weight:650; line-height:.86; letter-spacing:-.07em; } h1 span { display:block; margin-top:.07em; color:var(--muted); }
+    .trust { min-height:560px; border:1px solid rgba(92,240,187,.28); border-radius:32px; background:radial-gradient(circle at 50% 38%,rgba(92,240,187,.10),transparent 17rem),linear-gradient(150deg,rgba(21,37,30,.94),rgba(16,29,24,.80)); padding:28px; box-shadow:0 36px 110px var(--shadow), inset 0 0 0 1px rgba(92,240,187,.06); }
+    .trust-top { display:flex; justify-content:space-between; color:var(--soft); font-size:11px; font-weight:900; letter-spacing:.12em; } .trust-top b { color:var(--mint); }
+    .pulse { position:relative; height:320px; margin:8px 0 10px; } .orbit { position:absolute; left:50%; top:50%; border:1px solid rgba(92,240,187,.25); border-radius:50%; transform:translate(-50%,-50%); } .o1 { width:210px; height:210px; } .o2 { width:138px; height:138px; border-style:dashed; } .core { position:absolute; left:50%; top:50%; width:94px; height:94px; display:grid; place-items:center; align-content:center; border:1px solid rgba(203,255,74,.48); border-radius:50%; background:radial-gradient(circle,rgba(203,255,74,.22),var(--panel2)); transform:translate(-50%,-50%); box-shadow:0 0 55px rgba(203,255,74,.18); } .core strong { color:var(--acid); font-size:23px; } .core small { color:var(--soft); font-size:10px; letter-spacing:.18em; }
+    .node { position:absolute; min-width:118px; display:grid; gap:3px; border:1px solid var(--line2); border-radius:15px; background:rgba(16,29,24,.94); padding:10px 12px; box-shadow:0 12px 36px var(--shadow); } .node b { font-size:11px; letter-spacing:.11em; } .node small { color:var(--muted); font-size:8px; font-weight:900; letter-spacing:.12em; } .n1{left:0;top:14%}.n2{right:0;top:14%}.n3{left:0;bottom:11%}.n4{right:0;bottom:11%}.n4 b{color:var(--acid)}
+    .trust p { margin:0; color:var(--soft); font-size:16px; line-height:1.68; } .trust p strong { color:var(--ink); }
+    .ribbon { display:grid; grid-template-columns:minmax(240px,1fr) repeat(4,minmax(125px,.46fr)) auto; overflow:hidden; margin-bottom:18px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:0 22px 60px var(--shadow); } .ribbon>*{min-height:88px;border-right:1px solid var(--line)} .ribbon>*:last-child{border-right:0}.ribbon-intro{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:17px 22px}.ribbon small,.ribbon-intro span{color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.ribbon p{margin:0;color:var(--soft);font-size:13px;line-height:1.5}.metric{display:flex;align-items:center;gap:12px;padding:14px 17px}.glyph{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:rgba(203,255,74,.12);color:var(--acid);font-size:12px;font-weight:900}.metric b{display:block;margin-top:5px;font-size:13px}.ribbon button{border:0;background:var(--acid);color:#0a150f;padding:0 20px;font-size:12px;font-weight:900}
+    .demo { display:grid; grid-template-columns:minmax(280px,.78fr) minmax(520px,1.22fr) auto; gap:1px; overflow:hidden; margin-bottom:18px; border:1px solid var(--line); border-radius:24px; background:var(--line); box-shadow:0 22px 65px var(--shadow); } .demo>*{background:var(--panel)}.demo-copy{display:flex;flex-direction:column;justify-content:center;gap:9px;padding:24px;background:radial-gradient(circle at 0 0,rgba(203,255,74,.12),transparent 18rem),var(--panel)}.eyebrow{color:var(--mint);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.demo h2,.workspace h2,.protocol h2{margin:0;font-family:"Bahnschrift",sans-serif;font-size:31px;line-height:.98;letter-spacing:-.04em}.demo p{margin:0;color:var(--soft);font-size:13px;line-height:1.6}.runs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}.run{padding:20px;background:var(--panel2)}.run h3{margin:10px 0 13px;font-size:22px}.run dl{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--line)}.run div{background:var(--panel);padding:9px}.run dt{color:var(--muted);font-size:8px;font-weight:900;text-transform:uppercase}.run dd{margin:4px 0 0;font-size:10px;font-weight:900}.run small{display:block;margin-top:12px;color:var(--muted);font-size:10px;line-height:1.45}.demo button{border:0;background:var(--mint);color:#07100d;padding:0 22px;font-size:12px;font-weight:900}
+    .workspace { display:grid; grid-template-columns:minmax(420px,.86fr) minmax(520px,1.14fr); gap:18px; align-items:start; } .panel { border:1px solid var(--line); border-radius:28px; background:var(--panel); padding:25px; box-shadow:0 25px 80px var(--shadow); } label{display:grid;gap:8px;margin-top:14px;color:var(--mint);font-size:12px;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.workspace input,.workspace select,.workspace textarea{width:100%;border:1px solid var(--line);border-radius:14px;background:rgba(2,9,7,.46);color:var(--ink);padding:13px 14px}.workspace textarea{min-height:92px}.policies{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}.policies button{min-height:58px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:10px;text-align:left}.policies button.active{border-color:rgba(203,255,74,.55);background:rgba(203,255,74,.12)}.quote-btn,.run-btn{width:100%;border:0;border-radius:17px;background:var(--acid);color:#0a150f;padding:17px 20px;margin-top:14px;font-weight:900}.trace{height:680px;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:radial-gradient(circle at 95% 0,rgba(92,240,187,.11),transparent 25rem),linear-gradient(145deg,#0d1713,#07100d);box-shadow:0 28px 90px rgba(0,0,0,.35)}.trace-head{display:flex;justify-content:space-between;padding:28px 30px 23px;border-bottom:1px solid rgba(255,255,255,.1)}.trace-list{flex:1;overflow:auto;margin:0;padding:24px 30px;list-style:none}.trace li{display:grid;grid-template-columns:23px 1fr;gap:13px;min-height:94px}.dot{width:10px;height:10px;margin-top:4px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px rgba(92,240,187,.12)}.trace h3{margin:5px 0}.trace p{margin:0;color:#afc0b7;font-size:13px;line-height:1.55}.receipt{display:none;margin-top:18px;border:1px solid rgba(92,240,187,.35);border-radius:24px;background:linear-gradient(100deg,rgba(92,240,187,.09),var(--panel));padding:20px;box-shadow:0 22px 65px var(--shadow)}.receipt.on{display:grid;gap:10px}.receipt code{color:var(--acid)}
+    .protocol{margin-top:72px}.protocol-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.market{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:24px;background:var(--line)}.market article{background:var(--panel2);padding:20px}.market h3{margin:10px 0}.market dl{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:13px;overflow:hidden}.market div{display:flex;justify-content:space-between;gap:10px;background:var(--panel);padding:9px}.market dt{color:var(--muted);font-size:8px;font-weight:900}.market dd{margin:0;font-size:10px;font-weight:900}.links{display:grid;gap:10px}.links a{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:15px;text-decoration:none;font-weight:900}.footer{margin:32px 0;border-top:1px solid var(--line);padding-top:18px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:var(--muted)} code{color:var(--acid)}
+    @media(max-width:1000px){.nav{grid-template-columns:1fr auto}.tabs{order:3;grid-column:1/-1}.hero-grid,.workspace,.protocol-grid{grid-template-columns:1fr}.trust{max-width:760px}.ribbon{grid-template-columns:repeat(2,1fr)}.ribbon-intro,.ribbon button{grid-column:1/-1}.demo{grid-template-columns:1fr}.market{grid-template-columns:1fr}.runs{grid-template-columns:1fr}} @media(max-width:700px){.shell{width:calc(100% - 28px)}.wallet span:first-child{display:none}.brand small{display:none}h1{font-size:clamp(3.6rem,14vw,6rem)}.trust{min-height:520px}.policies{grid-template-columns:1fr}.ribbon{grid-template-columns:1fr}.tabs{width:100%;overflow:auto}.tabs a{flex:1;text-align:center;white-space:nowrap}}
   </style>
 </head>
 <body>
+  <header class="header">
+    <nav class="nav shell">
+      <a class="brand" href="/" aria-label="KNOT clearing console"><span class="mark"></span><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></a>
+      <div class="tabs"><a href="/">Verify</a><a href="/receipt/demo">Receipts</a><a href="#treasury">Treasury</a><a href="#protocol">Protocol</a></div>
+      <div class="wallet"><span><small>Network</small><b>Add Arc Testnet</b></span><span><small>Wallet</small><b>Connect wallet</b></span></div>
+    </nav>
+  </header>
   <main>
-    <nav><strong>KNOT</strong><div class="actions"><a href="/.well-known/knot">Discovery</a><a href="/api/openapi">OpenAPI</a><a href="/api/manifest">Manifest</a><a href="/api/launch">Launch kit</a><a href="/api/marketplace">Marketplace</a></div></nav>
-    <section class="hero">
-      <div><span class="eyebrow">Verification-native settlement on Arc</span><h1>Never pay an API <span>for an answer you cannot trust.</span></h1><p>KNOT routes agent work through policy-aware providers, rejects weak evidence, and authorizes USDC only when a delivery satisfies the buyer's obligation.</p></div>
-      <div class="proof"><div><span>Live Arc proof</span><b>Job #${LATEST_PROOF.jobId}</b><p>Evidence hash anchored through the KNOT hook and completed on Arc Testnet.</p></div><div><span>Machine-readable</span><b>Discovery + OpenAPI</b><p>External agents can quote, execute, read receipts, and verify evidence bindings.</p></div><div><span>Launch ready</span><b>Domain-agnostic</b><p>The preview host is temporary. KNOT is ready to attach a clean custom domain for public judging.</p></div></div>
-    </section>
-    <section class="grid">
-      <article class="panel">
-        <span class="eyebrow">Preflight</span><h2>Quote a route</h2>
-        <label>Wallet<input id="subject" value="${EXAMPLE_SUBJECT}" /></label>
-        <label>Policy<select id="policy"><option value="economy">Economy</option><option value="balanced">Balanced</option><option value="strict" selected>Strict</option></select></label>
-        <button id="quote">Quote route</button>
-        <pre id="quoteOut">Ready to quote.</pre>
-      </article>
-      <article class="panel">
-        <span class="eyebrow">Execution</span><h2>Create a receipt</h2>
-        <p>This public worker export runs preview execution and in-memory receipt verification. The full Next build adds Circle MPC, x402, and durable file-backed receipts.</p>
-        <button id="execute">Run preview execution</button>
-        <pre id="execOut">Ready to execute.</pre>
-      </article>
-    </section>
-    <section class="launch-room">
-      <article class="launch-copy">
-        <span class="eyebrow">Launch room</span>
-        <h2>Built to be a product, not a slide.</h2>
-        <p>KNOT has a buyer surface, provider route logic, receipt verification, public integration docs, and onchain proof. The remaining launch step is brand distribution: attach a clean custom domain and move hosted preview receipts to durable storage before a public pilot.</p>
-        <ul>
-          <li>Buyers get route, cost, and fallback clarity before an agent spends.</li>
-          <li>Providers compete on proof quality, not just generated text.</li>
-          <li>Protocols receive an evidence hash they can enforce onchain.</li>
-          <li>KNOT earns a 120 bps fee only on accepted provider settlement.</li>
-        </ul>
-      </article>
-      <div class="launch-metrics">
-        <div class="metric-card"><span>Primary wedge</span><strong>Agent treasury clearing</strong><small>Start where every autonomous payment needs a policy gate.</small></div>
-        <div class="metric-card"><span>Revenue path</span><strong>Accepted settlement fee</strong><small>KNOT can charge only when work clears the verification boundary.</small></div>
-        <div class="metric-card"><span>TGE guardrail</span><strong>USDC stays settlement</strong><small>Future token utility belongs around reputation, verifier incentives, and governance, not payment replacement.</small></div>
+    <section class="hero shell">
+      <div class="kicker"><span>01</span><p>OUTCOME CLEARING FOR AUTONOMOUS COMMERCE</p></div>
+      <div class="hero-grid">
+        <h1>Never pay an API <span>for an answer you cannot trust.</span></h1>
+        <article class="trust">
+          <div class="trust-top"><span>TRUST ENGINE</span><b>LIVE / ARC TESTNET</b></div>
+          <div class="pulse"><i class="orbit o1"></i><i class="orbit o2"></i><div class="core"><strong>5 / 5</strong><small>PROOF</small></div><div class="node n1"><b>INTENT</b><small>DEFINE</small></div><div class="node n2"><b>MARKET</b><small>ROUTE</small></div><div class="node n3"><b>VERIFY</b><small>PROVE</small></div><div class="node n4"><b>SETTLE</b><small>USDC</small></div></div>
+          <p><strong>KNOT is the clearing layer for machine work.</strong> Define what a valid result means, let providers compete, and release USDC only when the winning evidence satisfies the policy.</p>
+        </article>
       </div>
     </section>
-    <section class="kit-row" aria-label="KNOT launch evidence links">
-      <a href="/api/submission"><span>Judge brief</span><b>/api/submission</b><small>Problem, users, demo flow, and live proof.</small></a>
-      <a href="/api/launch"><span>Launch kit</span><b>/api/launch</b><small>Domain readiness, utility, revenue, and TGE narrative.</small></a>
-      <a href="/api/marketplace"><span>Marketplace</span><b>/api/marketplace</b><small>Provider supply and accepted-settlement economics.</small></a>
-      <a href="/api/system/status"><span>Status</span><b>/api/system/status</b><small>Runtime readiness without exposing secrets.</small></a>
-      <a href="${LATEST_PROOF.completionExplorerUrl}"><span>Arc proof</span><b>Completed job</b><small>Onchain completion tied to KNOT evidence.</small></a>
+    <section class="ribbon shell">
+      <div class="ribbon-intro"><span>Live environment</span><p>Connect once, authorize your agent, and keep its signing key isolated from the browser.</p></div>
+      <div class="metric"><i class="glyph">A</i><span><small>Network</small><b>Arc Testnet</b></span></div>
+      <div class="metric"><i class="glyph">$</i><span><small>Connected wallet</small><b>Native USDC</b></span></div>
+      <div class="metric"><i class="glyph">M</i><span><small>Agent wallet</small><b>Worker preview</b></span></div>
+      <div class="metric"><i class="glyph">402</i><span><small>Gateway balance</small><b>x402 ready</b></span></div>
+      <button type="button">Connect wallet</button>
     </section>
-    <footer><span>Commerce <code>${ARC_DEPLOYMENT.commerce.address}</code></span><span>Hook <code>${ARC_DEPLOYMENT.hook.address}</code></span><span><a href="${LATEST_PROOF.completionExplorerUrl}" style="color:var(--acid)">View completed job</a></span></footer>
+    <section class="demo shell">
+      <div class="demo-copy"><span class="eyebrow">JUDGE MODE</span><h2>Run the whole proof ladder.</h2><p>One click runs the same wallet through Economy, Balanced, and Strict. KNOT should choose a different provider route and price as the obligation gets harder.</p></div>
+      <div class="runs" id="runs">
+        <article class="run"><span class="eyebrow">Economy</span><h3>Arc Baseline</h3><dl><div><dt>Route</dt><dd>pending</dd></div><div><dt>Price</dt><dd>up to 0.012</dd></div></dl><small>Fast public Arc facts for low-risk decisions.</small></article>
+        <article class="run"><span class="eyebrow">Balanced</span><h3>Arc Sentinel</h3><dl><div><dt>Route</dt><dd>pending</dd></div><div><dt>Price</dt><dd>up to 0.030</dd></div></dl><small>Signed evidence for everyday agent payments.</small></article>
+        <article class="run"><span class="eyebrow">Strict</span><h3>Arc Veritas</h3><dl><div><dt>Route</dt><dd>pending</dd></div><div><dt>Price</dt><dd>up to 0.050</dd></div></dl><small>Code-aware proof for treasury and contract decisions.</small></article>
+      </div>
+      <button id="judge" type="button">Run 3-policy proof</button>
+    </section>
+    <section class="workspace shell">
+      <article class="panel">
+        <span class="eyebrow">Obligation builder</span><h2>Define the decision.</h2>
+        <label>Decision request<textarea id="task">Inspect this Arc address before a contract interaction and return code-aware signed evidence.</textarea></label>
+        <label>Wallet to assess<input id="subject" value="${EXAMPLE_SUBJECT}" /></label>
+        <label>Protection level<select id="policy"><option value="economy">Economy</option><option value="balanced">Balanced</option><option value="strict" selected>Strict</option></select></label>
+        <div class="policies"><button type="button">Economy<br><small>Arc Baseline</small></button><button type="button">Balanced<br><small>Arc Sentinel</small></button><button class="active" type="button">Strict<br><small>Arc Veritas</small></button></div>
+        <button class="quote-btn" id="quote" type="button">Quote route</button>
+        <button class="run-btn" id="execute" type="button">Run proof preview</button>
+      </article>
+      <article class="trace">
+        <div class="trace-head"><div><span class="eyebrow">Agent execution</span><h2>Clearing trace</h2></div><strong id="eventCount">00</strong></div>
+        <ol class="trace-list" id="trace"><li><i class="dot"></i><div><h3>The clearing engine is standing by.</h3><p>Run the obligation to inspect every decision.</p></div></li></ol>
+      </article>
+    </section>
+    <section class="receipt shell" id="receipt"><strong>SEALED EXECUTION RECEIPT</strong><span id="receiptCopy"></span><code id="receiptHash"></code><a id="receiptLink" href="#">Open verified receipt</a></section>
+    <section class="protocol shell" id="protocol">
+      <div class="kicker"><span>02</span><p>THE PROTOCOL KNOT</p></div>
+      <div class="protocol-grid">
+        <article class="panel"><span class="eyebrow">Provider marketplace</span><h2>KNOT earns only when evidence clears.</h2><p>Rejected work does not release provider payment or protocol fees. Accepted evidence creates the settlement event, the receipt, and the marketplace revenue moment.</p></article>
+        <div class="market">
+          <article><span class="eyebrow">Snapshot</span><h3>Arc Baseline</h3><dl><div><dt>Provider</dt><dd>0.008</dd></div><div><dt>KNOT fee</dt><dd>0.000096</dd></div><div><dt>Buyer total</dt><dd>0.008096</dd></div></dl></article>
+          <article><span class="eyebrow">Signed</span><h3>Arc Sentinel</h3><dl><div><dt>Provider</dt><dd>0.024</dd></div><div><dt>KNOT fee</dt><dd>0.000288</dd></div><div><dt>Buyer total</dt><dd>0.024288</dd></div></dl></article>
+          <article><span class="eyebrow">Code-aware</span><h3>Arc Veritas</h3><dl><div><dt>Provider</dt><dd>0.045</dd></div><div><dt>KNOT fee</dt><dd>0.000540</dd></div><div><dt>Buyer total</dt><dd>0.045540</dd></div></dl></article>
+        </div>
+      </div>
+      <div class="links" style="margin-top:18px"><a href="/.well-known/knot">Agent discovery <span>/.well-known/knot</span></a><a href="/api/openapi">OpenAPI <span>/api/openapi</span></a><a href="/api/submission">Submission brief <span>/api/submission</span></a><a href="/api/marketplace">Marketplace <span>/api/marketplace</span></a><a href="${LATEST_PROOF.completionExplorerUrl}">Arc completed job <span>Job #${LATEST_PROOF.jobId}</span></a></div>
+    </section>
+    <footer class="footer shell"><span>Commerce <code>${ARC_DEPLOYMENT.commerce.address}</code></span><span>Hook <code>${ARC_DEPLOYMENT.hook.address}</code></span><span>Pay for verified outcomes</span></footer>
   </main>
   <script>
     const subject = document.getElementById("subject");
     const policy = document.getElementById("policy");
-    const quoteOut = document.getElementById("quoteOut");
-    const execOut = document.getElementById("execOut");
-    const body = () => ({ jobType: policy.value === "strict" ? "contract-review" : "treasury", policyPreset: policy.value, subject: subject.value, maxPriceUsdc: policy.value === "economy" ? 0.012 : policy.value === "balanced" ? 0.03 : 0.05 });
+    const task = document.getElementById("task");
+    const trace = document.getElementById("trace");
+    const receipt = document.getElementById("receipt");
+    const receiptCopy = document.getElementById("receiptCopy");
+    const receiptHash = document.getElementById("receiptHash");
+    const receiptLink = document.getElementById("receiptLink");
+    const eventCount = document.getElementById("eventCount");
+    const body = () => ({ jobType: policy.value === "strict" ? "contract-review" : "treasury", policyPreset: policy.value, task: task.value, subject: subject.value, maxPriceUsdc: policy.value === "economy" ? 0.012 : policy.value === "balanced" ? 0.03 : 0.05 });
     async function post(path) {
       const res = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body()) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
       return data;
     }
-    document.getElementById("quote").onclick = async () => { quoteOut.textContent = "Quoting..."; quoteOut.textContent = JSON.stringify(await post("/api/quote"), null, 2); };
+    function renderTrace(execution) {
+      trace.innerHTML = execution.events.map((item) => '<li><i class="dot"></i><div><h3>' + item.title + '</h3><p>' + item.detail + '</p></div></li>').join("");
+      eventCount.textContent = String(execution.events.length).padStart(2, "0");
+      const accepted = execution.attempts.find((attempt) => attempt.outcome === "accepted");
+      receipt.classList.add("on");
+      receiptCopy.textContent = (accepted ? accepted.provider : "No provider") + " / " + execution.settlement.amountUsdc.toFixed(3) + " USDC / " + execution.attempts.length + " attempt" + (execution.attempts.length === 1 ? "" : "s");
+      receiptHash.textContent = execution.settlement.evidenceHash || "no evidence hash";
+      receiptLink.href = "/receipt/" + execution.id;
+    }
+    document.getElementById("quote").onclick = async () => {
+      const quote = await post("/api/quote");
+      trace.innerHTML = quote.route.map((provider) => '<li><i class="dot"></i><div><h3>' + provider.name + '</h3><p>' + provider.reasons.join(" ") + '</p></div></li>').join("");
+      eventCount.textContent = String(quote.route.length).padStart(2, "0");
+    };
     document.getElementById("execute").onclick = async () => {
-      execOut.textContent = "Executing...";
       const execution = await post("/api/executions");
-      const hash = execution.settlement.evidenceHash || "";
-      const verify = await fetch("/api/receipts/verify?id=" + execution.id + "&evidenceHash=" + hash).then((res) => res.json());
-      execOut.textContent = JSON.stringify({ execution, verification: verify }, null, 2);
+      renderTrace(execution);
+    };
+    document.getElementById("judge").onclick = async () => {
+      const cases = [["economy",0.012],["balanced",0.03],["strict",0.05]];
+      const runs = document.querySelectorAll(".run");
+      for (let i = 0; i < cases.length; i += 1) {
+        const [preset, maxPriceUsdc] = cases[i];
+        const res = await fetch("/api/executions", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ jobType: preset === "strict" ? "contract-review" : "treasury", policyPreset:preset, subject: subject.value, maxPriceUsdc }) });
+        const execution = await res.json();
+        const accepted = execution.attempts.find((attempt) => attempt.outcome === "accepted");
+        runs[i].querySelector("h3").textContent = accepted.provider;
+        runs[i].querySelectorAll("dd")[0].textContent = execution.attempts.length + " attempt" + (execution.attempts.length === 1 ? "" : "s");
+        runs[i].querySelectorAll("dd")[1].textContent = execution.settlement.amountUsdc.toFixed(3) + " USDC";
+        runs[i].querySelector("small").textContent = "receipt " + execution.id;
+        if (i === cases.length - 1) renderTrace(execution);
+      }
     };
   </script>
 </body>
