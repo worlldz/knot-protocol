@@ -136,7 +136,9 @@ export async function createArcBaselineDelivery(subject: string, decisionRequest
 }
 
 export async function createArcRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
-  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
+  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY
+    ?? process.env.KNOT_ATTESTER_PRIVATE_KEY
+    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
   if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
   const snapshot = await readArcWallet(subject);
   const account = privateKeyToAccount(providerKey as Hex);
@@ -172,7 +174,9 @@ export async function createArcRiskDelivery(subject: string, decisionRequest?: s
 }
 
 export async function createArcDeepRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
-  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY;
+  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY
+    ?? process.env.KNOT_ATTESTER_PRIVATE_KEY
+    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
   if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
   const snapshot = await readArcWallet(subject);
   const account = privateKeyToAccount(providerKey as Hex);
