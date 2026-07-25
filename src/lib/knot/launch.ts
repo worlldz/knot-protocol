@@ -53,6 +53,7 @@ export function createKnotLaunchKit(options: LaunchOptions = {}) {
       manifest: manifest.endpoints.manifest.url,
       submission: manifest.endpoints.submission.url,
       launchKit: absoluteUrl(baseUrl, "/api/launch"),
+      marketplace: absoluteUrl(baseUrl, "/api/marketplace"),
       quote: manifest.endpoints.quoteExecution.url,
       execute: manifest.endpoints.runExecution.url,
       verifyReceipt: manifest.endpoints.verifyReceipt.url,
@@ -79,7 +80,7 @@ export function createKnotLaunchKit(options: LaunchOptions = {}) {
       wedge: "start as an evidence router for Arc-native agent payments, then become the settlement standard for paid machine work",
       revenue: [
         "protocol fee on accepted settlements",
-        "provider marketplace fees",
+      "provider marketplace fees",
         "enterprise verifier and audit endpoints",
         "premium policy templates for treasury and risk teams",
       ],
@@ -102,6 +103,7 @@ export function createKnotLaunchKit(options: LaunchOptions = {}) {
       "Show Strict falling back to Arc Veritas.",
       "Open the receipt and verify the evidence hash.",
       "Open /.well-known/knot, /api/openapi, /api/submission, and /api/launch.",
+      "Open /api/marketplace to show provider supply and accepted-settlement economics.",
       "Open the Arcscan links for the deployed commerce contract, hook, attestation, and completed job.",
     ],
     launchGaps: [

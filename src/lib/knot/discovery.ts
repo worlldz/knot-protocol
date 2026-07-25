@@ -35,6 +35,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       "erc-8183-style-completion-hooks",
       "judge-ready-submission-brief",
       "launch-readiness-kit",
+      "provider-marketplace-catalog",
     ],
     chain: manifest.chain,
     contracts: manifest.contracts,
@@ -48,6 +49,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       openapi: absoluteUrl(baseUrl, "/api/openapi"),
       submission: absoluteUrl(baseUrl, "/api/submission"),
       launch: absoluteUrl(baseUrl, "/api/launch"),
+      marketplace: absoluteUrl(baseUrl, "/api/marketplace"),
     },
     auth: {
       quote: "none",
@@ -63,6 +65,7 @@ export function createKnotDiscovery(options: DiscoveryOptions = {}) {
       "GET /api/executions/{id}",
       "GET /api/receipts/verify?id={id}&evidenceHash={hash}",
       "GET /api/launch",
+      "GET /api/marketplace",
     ],
   };
 }
@@ -84,6 +87,7 @@ export function createKnotOpenApi(options: DiscoveryOptions = {}) {
       { name: "Preflight", description: "Plan route and cost before execution." },
       { name: "Execution", description: "Run verification-native settlement flows." },
       { name: "Receipts", description: "Read and verify evidence-bound receipts." },
+      { name: "Marketplace", description: "Inspect provider supply and accepted-settlement economics." },
       { name: "Status", description: "Inspect public runtime readiness." },
     ],
     paths: {
@@ -142,6 +146,18 @@ export function createKnotOpenApi(options: DiscoveryOptions = {}) {
           responses: {
             "200": {
               description: "KNOT launch kit",
+              content: { "application/json": { schema: { type: "object" } } },
+            },
+          },
+        },
+      },
+      "/api/marketplace": {
+        get: {
+          tags: ["Marketplace"],
+          summary: "Read provider supply, policy products, and clearing economics.",
+          responses: {
+            "200": {
+              description: "KNOT marketplace catalog",
               content: { "application/json": { schema: { type: "object" } } },
             },
           },

@@ -450,6 +450,24 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 
 /* Explore */
 .explore-page > .build-band { width: 100%; margin-top: 20px; }
+.marketplace-surface { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(520px, 1.28fr); gap: 1px; overflow: hidden; margin-top: 20px; border: 1px solid var(--line); border-radius: 28px; background: var(--line); box-shadow: 0 24px 72px var(--shadow); }
+.marketplace-surface > * { background: var(--panel); }
+.marketplace-copy { padding: 26px; background: radial-gradient(circle at 0 0, color-mix(in srgb, var(--acid) 13%, transparent), transparent 19rem), var(--panel); }
+.marketplace-copy span, .marketplace-providers article > span { color: var(--mint); font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+.marketplace-copy h2 { margin: 8px 0 10px; font-family: "Bahnschrift", sans-serif; font-size: 38px; line-height: .96; letter-spacing: -.05em; }
+.marketplace-copy p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.65; }
+.marketplace-copy dl { display: grid; gap: 1px; overflow: hidden; margin: 20px 0 0; border: 1px solid var(--line); border-radius: 16px; background: var(--line); }
+.marketplace-copy dl div { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--panel-solid); padding: 12px 14px; }
+.marketplace-copy dt { color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.marketplace-copy dd { margin: 0; color: var(--acid); font-size: 12px; font-weight: 850; }
+.marketplace-providers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); }
+.marketplace-providers article { min-width: 0; background: var(--panel-solid); padding: 22px; }
+.marketplace-providers h3 { margin: 13px 0 8px; font-family: "Bahnschrift", sans-serif; font-size: 25px; letter-spacing: -.04em; }
+.marketplace-providers p { min-height: 58px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.marketplace-providers dl { display: grid; gap: 1px; overflow: hidden; margin: 18px 0 0; border: 1px solid var(--line); border-radius: 13px; background: var(--line); }
+.marketplace-providers dl div { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel); padding: 10px; }
+.marketplace-providers dt { color: var(--muted); font-size: 8px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.marketplace-providers dd { margin: 0; color: var(--ink); font-size: 10px; font-weight: 850; white-space: nowrap; }
 .developer-surface { display: grid; grid-template-columns: minmax(260px, .72fr) minmax(360px, .86fr) minmax(360px, 1fr) auto; gap: 1px; overflow: hidden; margin-top: 20px; border: 1px solid var(--line); border-radius: 26px; background: var(--line); box-shadow: 0 24px 72px var(--shadow); }
 .developer-surface > * { background: var(--panel); }
 .developer-copy { padding: 25px; background: radial-gradient(circle at 10% 0, color-mix(in srgb, var(--blue) 12%, transparent), transparent 18rem), var(--panel); }
@@ -603,6 +621,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
   .execution-receipt dl { grid-column: 1 / -1; grid-row: 2; }
   .build-band { grid-template-columns: 1fr 1fr; }
   .x402-signal { display: none; }
+  .marketplace-surface { grid-template-columns: 1fr; }
+  .marketplace-providers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .developer-surface { grid-template-columns: 1fr 1fr; }
   .developer-copy, .developer-actions { grid-column: 1 / -1; }
   .developer-actions { display: flex; flex-wrap: wrap; }
@@ -632,6 +652,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
   .execution-receipt a { width: max-content; }
   .risk-report { grid-template-columns: 190px 1fr; }.risk-signals { grid-column: 1 / -1; }
   .provider-grid, .evidence-grid, .payment-layout, .payment-principles, .architecture-head, .resource-heading, .stack-story, .explore-hero { grid-template-columns: 1fr; }
+  .marketplace-providers { grid-template-columns: 1fr; }
+  .marketplace-providers p { min-height: 0; }
   .developer-surface { grid-template-columns: 1fr; }
   .developer-copy, .developer-actions { grid-column: auto; }
   .explore-hero h1 > span, .explore-hero h1 > em { white-space: normal; }

@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/api/manifest", 0.7],
     ["/api/submission", 0.82],
     ["/api/launch", 0.82],
+    ["/api/marketplace", 0.76],
     ["/api/system/status", 0.62],
   ];
 

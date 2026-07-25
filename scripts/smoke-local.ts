@@ -103,6 +103,7 @@ async function main() {
     "openapi endpoint is missing KNOT quote or receipt paths",
   );
   assert("/api/launch" in openapi.paths, "openapi endpoint is missing launch kit path");
+  assert("/api/marketplace" in openapi.paths, "openapi endpoint is missing marketplace path");
 
   const submission = await readJson<JsonObject>("/api/submission");
   assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission brief tagline mismatch");
@@ -120,6 +121,20 @@ async function main() {
       && "customDomainReady" in launch.domainReadiness
       && launch.domainReadiness.customDomainReady === true,
     "launch kit does not mark custom domain readiness",
+  );
+
+  const marketplace = await readJson<JsonObject>("/api/marketplace");
+  assert(
+    marketplace.protocolFee
+      && typeof marketplace.protocolFee === "object"
+      && "bps" in marketplace.protocolFee
+      && marketplace.protocolFee.bps === 120,
+    "marketplace endpoint did not return KNOT protocol fee",
+  );
+  assert(
+    Array.isArray(marketplace.providers)
+      && marketplace.providers.length === 3,
+    "marketplace endpoint did not return provider supply",
   );
 
   const status = await readJson<JsonObject>("/api/system/status");

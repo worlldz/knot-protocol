@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         "/api/manifest",
         "/api/submission",
         "/api/launch",
+        "/api/marketplace",
         "/api/system/status",
       ],
       disallow: [

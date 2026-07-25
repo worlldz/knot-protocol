@@ -22,6 +22,7 @@ async function main() {
   assert(openapi.paths["/api/quote"], "openapi missing quote path");
   assert(openapi.paths["/api/submission"], "openapi missing submission path");
   assert(openapi.paths["/api/launch"], "openapi missing launch path");
+  assert(openapi.paths["/api/marketplace"], "openapi missing marketplace path");
 
   const submission = await readJson("/api/submission");
   assert(submission.tagline === "Pay for verified outcomes, not unproven responses.", "submission tagline mismatch");
@@ -31,6 +32,11 @@ async function main() {
   assert(launch.status === "testnet-ready", "launch kit status mismatch");
   assert(launch.domainReadiness.customDomainReady === true, "launch kit should be custom-domain ready");
   assert(launch.tgeNarrative.guardrail.includes("USDC remains"), "launch kit missing TGE guardrail");
+
+  const marketplace = await readJson("/api/marketplace");
+  assert(marketplace.protocolFee.bps === 120, "marketplace fee mismatch");
+  assert(marketplace.providers.length === 3, "marketplace provider count mismatch");
+  assert(marketplace.providers[2].fee.buyerTotalUsdc === 0.04554, "marketplace strict fee mismatch");
 
   const subject = "0x0000000000000000000000000000000000000001";
   const executionInput = {
@@ -66,6 +72,7 @@ async function main() {
     discovery: discovery.protocol,
     submission: submission.name,
     launch: launch.status,
+    marketplace: marketplace.protocolFee.bps,
     quote: quote.recommendedProvider.name,
     execution: execution.id,
     verification: verification.status,

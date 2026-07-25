@@ -115,6 +115,12 @@ const resources = [
   { number: "06", icon: "INTENT", label: "Testnet funds", title: "Open the faucet", copy: "Fund a wallet with test USDC and start sending, settling, and deploying on Arc.", href: "https://faucet.circle.com/", tone: "rose" },
 ] as const;
 
+const marketplaceProviders = [
+  { id: "01", name: "Arc Baseline", tier: "Snapshot", price: "0.008", fee: "0.000096", total: "0.008096", fit: "Cheap public Arc state for low-risk preflight." },
+  { id: "02", name: "Arc Sentinel", tier: "Signed", price: "0.024", fee: "0.000288", total: "0.024288", fit: "Signed risk evidence for everyday agent spend." },
+  { id: "03", name: "Arc Veritas", tier: "Code-aware", price: "0.045", fee: "0.000540", total: "0.045540", fit: "Premium strict-policy proof for treasury and contracts." },
+] as const;
+
 function KnotMark() {
   return <span className="knot-mark" aria-hidden="true"><i /><i /></span>;
 }
@@ -1193,16 +1199,45 @@ function ExploreView() {
 
       <BuildOnArcBand />
 
+      <section className="marketplace-surface">
+        <div className="marketplace-copy">
+          <span>PROVIDER MARKETPLACE</span>
+          <h2>KNOT earns only when evidence clears.</h2>
+          <p>Rejected work does not release provider payment or protocol fees. Accepted evidence creates the settlement event, the receipt, and the marketplace revenue moment.</p>
+          <dl>
+            <div><dt>Protocol fee</dt><dd>120 bps</dd></div>
+            <div><dt>Settlement asset</dt><dd>USDC</dd></div>
+            <div><dt>Supply model</dt><dd>Paid evidence providers</dd></div>
+          </dl>
+        </div>
+        <div className="marketplace-providers">
+          {marketplaceProviders.map((provider) => (
+            <article key={provider.name}>
+              <span>{provider.id} / {provider.tier}</span>
+              <h3>{provider.name}</h3>
+              <p>{provider.fit}</p>
+              <dl>
+                <div><dt>Provider</dt><dd>{provider.price} USDC</dd></div>
+                <div><dt>KNOT fee</dt><dd>{provider.fee}</dd></div>
+                <div><dt>Buyer total</dt><dd>{provider.total}</dd></div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="developer-surface">
         <div className="developer-copy">
           <span>DEVELOPER SURFACE</span>
           <h2>Wire KNOT into an agent in minutes.</h2>
-          <p>The app exposes agent discovery, OpenAPI, a judge-ready brief, preflight quotes, typed receipt reads, and a protected execution path for server-side agents.</p>
+          <p>The app exposes discovery, OpenAPI, marketplace economics, a launch kit, preflight quotes, typed receipt reads, and a protected execution path for server-side agents.</p>
         </div>
         <div className="developer-card">
           <div><span>GET</span><code>/.well-known/knot</code><small>Agent discovery with capabilities, auth boundaries, and recommended flow.</small></div>
           <div><span>GET</span><code>/api/openapi</code><small>OpenAPI 3.1 contract for quote, execute, receipt, and status calls.</small></div>
           <div><span>GET</span><code>/api/submission</code><small>Judge-ready project brief with problem, demo flow, users, and live proof.</small></div>
+          <div><span>GET</span><code>/api/launch</code><small>Domain readiness, utility, revenue paths, and TGE-safe guardrails.</small></div>
+          <div><span>GET</span><code>/api/marketplace</code><small>Provider supply, policy products, and accepted-settlement economics.</small></div>
           <div><span>POST</span><code>/api/quote</code><small>Preflight route, max spend, and provider fallback reasons before execution.</small></div>
           <div><span>POST</span><code>/api/executions</code><small>Run an obligation and receive a signed settlement receipt.</small></div>
           <div><span>GET</span><code>/api/manifest</code><small>Read jobs, policies, contracts, examples, and endpoint metadata.</small></div>
@@ -1221,11 +1256,15 @@ const receipt = await knot.run({
   policyPreset: "strict",
   subject: "0x0000000000000000000000000000000000000001",
   maxPriceUsdc: 0.05
-        });`}</pre>
+});
+
+const market = await knot.getMarketplace();`}</pre>
         <div className="developer-actions">
           <a href="/.well-known/knot" target="_blank" rel="noreferrer">Agent discovery <ExternalIcon /></a>
           <a href="/api/openapi" target="_blank" rel="noreferrer">OpenAPI <ExternalIcon /></a>
           <a href="/api/submission" target="_blank" rel="noreferrer">Submission brief <ExternalIcon /></a>
+          <a href="/api/launch" target="_blank" rel="noreferrer">Launch kit <ExternalIcon /></a>
+          <a href="/api/marketplace" target="_blank" rel="noreferrer">Marketplace <ExternalIcon /></a>
           <a href="/api/manifest" target="_blank" rel="noreferrer">Open manifest <ExternalIcon /></a>
           <a href="/api/system/status" target="_blank" rel="noreferrer">Check status <ExternalIcon /></a>
         </div>

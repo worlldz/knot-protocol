@@ -137,6 +137,32 @@ const PROVIDERS = [
   },
 ];
 
+const PROTOCOL_FEE_BPS = 120;
+
+const PROVIDER_META = {
+  "arc-baseline": {
+    category: "public Arc state",
+    proofTier: "snapshot",
+    minPolicy: "economy",
+    buyerFit: "cheap preflight checks where unsigned public state is enough",
+    supplierPitch: "sell fast, low-cost Arc observations into agent workflows",
+  },
+  "arc-sentinel": {
+    category: "signed risk evidence",
+    proofTier: "signed",
+    minPolicy: "balanced",
+    buyerFit: "everyday autonomous payments that need signed evidence before spend",
+    supplierPitch: "earn more by returning signed, policy-valid wallet evidence",
+  },
+  "arc-veritas": {
+    category: "code-aware verification",
+    proofTier: "code-aware",
+    minPolicy: "strict",
+    buyerFit: "treasury, contract, and high-risk interactions that need deeper proof",
+    supplierPitch: "capture premium strict-policy demand with richer evidence envelopes",
+  },
+};
+
 const ARC_DEPLOYMENT = {
   network: "Arc Testnet",
   chainId: 5042002,
@@ -195,6 +221,21 @@ function absolute(baseUrl, path) {
 
 function isAddress(value) {
   return typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value);
+}
+
+function roundUsdc(value) {
+  return Number(value.toFixed(6));
+}
+
+function feeFor(priceUsdc) {
+  const protocolFeeUsdc = roundUsdc((priceUsdc * PROTOCOL_FEE_BPS) / 10000);
+  return {
+    providerPriceUsdc: priceUsdc,
+    protocolFeeBps: PROTOCOL_FEE_BPS,
+    protocolFeeUsdc,
+    buyerTotalUsdc: roundUsdc(priceUsdc + protocolFeeUsdc),
+    providerNetUsdc: priceUsdc,
+  };
 }
 
 function buildObligation(input = {}) {
@@ -411,6 +452,7 @@ function manifest(baseUrl) {
       openapi: { method: "GET", path: "/api/openapi", url: absolute(baseUrl, "/api/openapi"), auth: "Public OpenAPI 3.1 integration contract." },
       submission: { method: "GET", path: "/api/submission", url: absolute(baseUrl, "/api/submission"), auth: "Public judge and launch brief. Does not expose secrets." },
       launch: { method: "GET", path: "/api/launch", url: absolute(baseUrl, "/api/launch"), auth: "Public launch, domain, utility, and go-to-market kit. Does not expose secrets." },
+      marketplace: { method: "GET", path: "/api/marketplace", url: absolute(baseUrl, "/api/marketplace"), auth: "Public provider supply, policy products, and clearing economics. Does not expose secrets." },
       quoteExecution: { method: "POST", path: "/api/quote", url: absolute(baseUrl, "/api/quote"), auth: "Public preflight. Does not execute work, store receipts, or spend funds." },
       runExecution: { method: "POST", path: "/api/executions", url: absolute(baseUrl, "/api/executions"), auth: "Preview execution is public in the worker export. Protocol-funded execution belongs to the full Next deployment." },
       listExecutions: { method: "GET", path: "/api/executions?ids=run_...", url: absolute(baseUrl, "/api/executions?ids=run_..."), auth: "Public by explicit receipt IDs." },
@@ -447,6 +489,7 @@ function discovery(baseUrl) {
       "erc-8183-style-completion-hooks",
       "judge-ready-submission-brief",
       "launch-readiness-kit",
+      "provider-marketplace-catalog",
     ],
     chain: currentManifest.chain,
     contracts: currentManifest.contracts,
@@ -460,6 +503,7 @@ function discovery(baseUrl) {
       openapi: absolute(baseUrl, "/api/openapi"),
       submission: absolute(baseUrl, "/api/submission"),
       launch: absolute(baseUrl, "/api/launch"),
+      marketplace: absolute(baseUrl, "/api/marketplace"),
     },
     auth: {
       quote: "none",
@@ -467,7 +511,7 @@ function discovery(baseUrl) {
       receiptRead: "receipt id",
       receiptVerification: "receipt id with optional evidence hash",
     },
-    recommendedFlow: ["GET /.well-known/knot", "POST /api/quote", "POST /api/executions", "GET /api/executions/{id}", "GET /api/receipts/verify?id={id}&evidenceHash={hash}", "GET /api/launch"],
+    recommendedFlow: ["GET /.well-known/knot", "POST /api/quote", "POST /api/executions", "GET /api/executions/{id}", "GET /api/receipts/verify?id={id}&evidenceHash={hash}", "GET /api/launch", "GET /api/marketplace"],
   };
 }
 
@@ -486,6 +530,7 @@ function openApi(baseUrl) {
       "/api/openapi": { get: { summary: "Read the OpenAPI document." } },
       "/api/submission": { get: { summary: "Read a judge-ready project brief and launch evidence checklist." } },
       "/api/launch": { get: { summary: "Read KNOT's launch, domain, utility, and go-to-market kit." } },
+      "/api/marketplace": { get: { summary: "Read provider supply, policy products, and clearing economics." } },
       "/api/quote": { post: { summary: "Preflight provider route and max spend before execution." } },
       "/api/executions": { post: { summary: "Create a preview execution receipt." }, get: { summary: "Read selected receipts by IDs." } },
       "/api/executions/{id}": { get: { summary: "Read one receipt." } },
@@ -567,6 +612,7 @@ function submission(baseUrl) {
       openapi: absolute(baseUrl, "/api/openapi"),
       manifest: absolute(baseUrl, "/api/manifest"),
       launch: absolute(baseUrl, "/api/launch"),
+      marketplace: absolute(baseUrl, "/api/marketplace"),
       quote: absolute(baseUrl, "/api/quote"),
       execute: absolute(baseUrl, "/api/executions"),
       verifyReceipt: absolute(baseUrl, "/api/receipts/verify?id=run_...&evidenceHash=0x..."),
@@ -587,6 +633,7 @@ function submission(baseUrl) {
       "Arc Testnet contracts are deployed and source verified.",
       "OpenAPI and discovery endpoints let external agents integrate without reading the UI.",
       "The launch kit explains domain readiness, utility, revenue paths, and TGE guardrails.",
+      "The marketplace catalog explains provider supply and accepted-settlement economics.",
       "The public worker export can run quote, preview execution, receipt lookup, and verification.",
     ],
     whyNow: [
@@ -637,6 +684,7 @@ function launchKit(baseUrl) {
       manifest: currentManifest.endpoints.manifest.url,
       submission: currentManifest.endpoints.submission.url,
       launchKit: absolute(baseUrl, "/api/launch"),
+      marketplace: absolute(baseUrl, "/api/marketplace"),
       quote: currentManifest.endpoints.quoteExecution.url,
       execute: currentManifest.endpoints.runExecution.url,
       verifyReceipt: currentManifest.endpoints.verifyReceipt.url,
@@ -671,6 +719,7 @@ function launchKit(baseUrl) {
       "Show Strict falling back to Arc Veritas.",
       "Open the receipt and verify the evidence hash.",
       "Open /.well-known/knot, /api/openapi, /api/submission, and /api/launch.",
+      "Open /api/marketplace to show provider supply and accepted-settlement economics.",
       "Open the Arcscan links for the deployed commerce contract, hook, attestation, and completed job.",
     ],
     launchGaps: [
@@ -678,6 +727,68 @@ function launchKit(baseUrl) {
       "Move hosted preview receipts from worker memory to durable storage before a public pilot.",
       "Configure live Circle and x402 credentials in the hosted environment for production paid execution.",
     ],
+  };
+}
+
+function marketplace(baseUrl) {
+  const currentManifest = manifest(baseUrl);
+  return {
+    name: "KNOT Marketplace",
+    version: API_VERSION,
+    description: "Provider supply, buyer demand, and clearing economics for verified agent work on KNOT.",
+    settlementAsset: currentManifest.chain.nativeAsset,
+    chain: currentManifest.chain,
+    protocolFee: {
+      bps: PROTOCOL_FEE_BPS,
+      description: "Charged only on accepted provider work. Rejected evidence does not earn provider payment or protocol fee.",
+    },
+    providers: PROVIDERS.map((provider) => ({
+      ...provider,
+      ...PROVIDER_META[provider.id],
+      fee: feeFor(provider.priceUsdc),
+    })),
+    policyProducts: Object.entries(POLICIES).map(([id, policy]) => ({
+      id,
+      label: policy.label,
+      buyerUseCase: policy.description,
+      expectedProvider: policy.expectedProvider,
+      maxPriceUsdc: policy.maxPriceUsdc,
+      expectedFee: feeFor(policy.maxPriceUsdc),
+    })),
+    jobDemand: Object.entries(JOBS).map(([id, job]) => ({
+      id,
+      label: job.label,
+      description: job.description,
+      defaultTask: job.task,
+    })),
+    revenueModel: {
+      wedge: "KNOT starts as the clearing layer between buyer agents and paid evidence providers.",
+      earnsWhen: "an accepted provider delivery satisfies the buyer obligation",
+      doesNotEarnWhen: "evidence is rejected, over budget, stale, unsigned when required, or missing required fields",
+      exampleStrictClear: feeFor(0.045),
+    },
+    onboarding: {
+      buyer: [
+        "Discover KNOT through /.well-known/knot.",
+        "Call /api/quote to preflight route, max spend, and fallback reasons.",
+        "Run /api/executions when the obligation is acceptable.",
+        "Verify the receipt through /api/receipts/verify before downstream settlement or audit.",
+      ],
+      provider: [
+        "Expose a paid evidence endpoint with deterministic schema.",
+        "Declare price, latency, freshness, fields, and signing support.",
+        "Return evidence that can be hashed and verified against the buyer obligation.",
+        "Earn only when KNOT accepts the delivery and settlement unlocks.",
+      ],
+    },
+    endpoints: {
+      marketplace: absolute(baseUrl, "/api/marketplace"),
+      discovery: currentManifest.endpoints.discovery.url,
+      manifest: currentManifest.endpoints.manifest.url,
+      quote: currentManifest.endpoints.quoteExecution.url,
+      execute: currentManifest.endpoints.runExecution.url,
+      verifyReceipt: currentManifest.endpoints.verifyReceipt.url,
+    },
   };
 }
 
@@ -701,14 +812,14 @@ function landing() {
     .launch-room { margin-top:18px; border:1px solid var(--line); border-radius:30px; padding:22px; background:linear-gradient(135deg, rgba(215,255,105,.1), rgba(13,29,22,.8) 42%, rgba(149,186,255,.09)); display:grid; grid-template-columns:1.05fr .95fr; gap:16px; box-shadow:0 30px 90px rgba(0,0,0,.28); }
     .launch-copy { border:1px solid var(--line); border-radius:24px; padding:24px; background:rgba(6,17,13,.62); } .launch-copy h2 { font-size:42px; line-height:.96; } .launch-copy ul, .kit-list { margin:18px 0 0; padding:0; list-style:none; display:grid; gap:10px; } .launch-copy li, .kit-list li { display:flex; gap:10px; color:var(--muted); line-height:1.5; } .launch-copy li:before, .kit-list li:before { content:""; width:7px; height:7px; margin-top:8px; flex:0 0 7px; border-radius:50%; background:var(--acid); box-shadow:0 0 16px rgba(215,255,105,.4); }
     .launch-metrics { display:grid; gap:12px; } .metric-card { border:1px solid var(--line); border-radius:20px; padding:18px; background:rgba(255,255,255,.045); } .metric-card span { color:var(--blue); font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; } .metric-card strong { display:block; margin-top:7px; font-size:24px; } .metric-card small { display:block; margin-top:8px; color:var(--muted); line-height:1.5; }
-    .kit-row { margin-top:18px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .kit-row a { border:1px solid var(--line); border-radius:18px; padding:16px; color:var(--ink); text-decoration:none; background:rgba(255,255,255,.04); } .kit-row span { display:block; color:var(--mint); font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; } .kit-row b { display:block; margin-top:7px; font-size:16px; } .kit-row small { display:block; margin-top:7px; color:var(--muted); line-height:1.45; }
+    .kit-row { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; } .kit-row a { border:1px solid var(--line); border-radius:18px; padding:16px; color:var(--ink); text-decoration:none; background:rgba(255,255,255,.04); } .kit-row span { display:block; color:var(--mint); font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; } .kit-row b { display:block; margin-top:7px; font-size:16px; } .kit-row small { display:block; margin-top:7px; color:var(--muted); line-height:1.45; }
     footer { margin-top:18px; border-radius:24px; padding:18px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; color:var(--muted); } code { color:var(--acid); }
     @media (max-width: 900px) { .hero, .grid, .launch-room, .kit-row { grid-template-columns:1fr; } .hero { padding:28px; } nav { align-items:flex-start; border-radius:24px; flex-direction:column; } }
   </style>
 </head>
 <body>
   <main>
-    <nav><strong>KNOT</strong><div class="actions"><a href="/.well-known/knot">Discovery</a><a href="/api/openapi">OpenAPI</a><a href="/api/manifest">Manifest</a><a href="/api/launch">Launch kit</a></div></nav>
+    <nav><strong>KNOT</strong><div class="actions"><a href="/.well-known/knot">Discovery</a><a href="/api/openapi">OpenAPI</a><a href="/api/manifest">Manifest</a><a href="/api/launch">Launch kit</a><a href="/api/marketplace">Marketplace</a></div></nav>
     <section class="hero">
       <div><span class="eyebrow">Verification-native settlement on Arc</span><h1>Never pay an API <span>for an answer you cannot trust.</span></h1><p>KNOT routes agent work through policy-aware providers, rejects weak evidence, and authorizes USDC only when a delivery satisfies the buyer's obligation.</p></div>
       <div class="proof"><div><span>Live Arc proof</span><b>Job #${LATEST_PROOF.jobId}</b><p>Evidence hash anchored through the KNOT hook and completed on Arc Testnet.</p></div><div><span>Machine-readable</span><b>Discovery + OpenAPI</b><p>External agents can quote, execute, read receipts, and verify evidence bindings.</p></div><div><span>Launch ready</span><b>Domain-agnostic</b><p>The preview host is temporary. KNOT is ready to attach a clean custom domain for public judging.</p></div></div>
@@ -737,6 +848,7 @@ function landing() {
           <li>Buyers get route, cost, and fallback clarity before an agent spends.</li>
           <li>Providers compete on proof quality, not just generated text.</li>
           <li>Protocols receive an evidence hash they can enforce onchain.</li>
+          <li>KNOT earns a 120 bps fee only on accepted provider settlement.</li>
         </ul>
       </article>
       <div class="launch-metrics">
@@ -748,6 +860,7 @@ function landing() {
     <section class="kit-row" aria-label="KNOT launch evidence links">
       <a href="/api/submission"><span>Judge brief</span><b>/api/submission</b><small>Problem, users, demo flow, and live proof.</small></a>
       <a href="/api/launch"><span>Launch kit</span><b>/api/launch</b><small>Domain readiness, utility, revenue, and TGE narrative.</small></a>
+      <a href="/api/marketplace"><span>Marketplace</span><b>/api/marketplace</b><small>Provider supply and accepted-settlement economics.</small></a>
       <a href="/api/system/status"><span>Status</span><b>/api/system/status</b><small>Runtime readiness without exposing secrets.</small></a>
       <a href="${LATEST_PROOF.completionExplorerUrl}"><span>Arc proof</span><b>Completed job</b><small>Onchain completion tied to KNOT evidence.</small></a>
     </section>
@@ -840,9 +953,10 @@ async function handle(request) {
   if (request.method === "GET" && url.pathname === "/api/manifest") return json(manifest(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/submission") return json(submission(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/launch") return json(launchKit(baseUrl));
+  if (request.method === "GET" && url.pathname === "/api/marketplace") return json(marketplace(baseUrl));
   if (request.method === "GET" && url.pathname === "/api/system/status") return json(status(baseUrl));
   if (request.method === "GET" && url.pathname === "/robots.txt") return new Response("User-agent: *\nAllow: /\nSitemap: " + absolute(baseUrl, "/sitemap.xml") + "\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
-  if (request.method === "GET" && url.pathname === "/sitemap.xml") return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${baseUrl}/</loc></url><url><loc>${baseUrl}/.well-known/knot</loc></url><url><loc>${baseUrl}/api/openapi</loc></url><url><loc>${baseUrl}/api/submission</loc></url><url><loc>${baseUrl}/api/launch</loc></url></urlset>`, { headers: { "content-type": "application/xml; charset=utf-8" } });
+  if (request.method === "GET" && url.pathname === "/sitemap.xml") return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${baseUrl}/</loc></url><url><loc>${baseUrl}/.well-known/knot</loc></url><url><loc>${baseUrl}/api/openapi</loc></url><url><loc>${baseUrl}/api/submission</loc></url><url><loc>${baseUrl}/api/launch</loc></url><url><loc>${baseUrl}/api/marketplace</loc></url></urlset>`, { headers: { "content-type": "application/xml; charset=utf-8" } });
   if (request.method === "POST" && url.pathname === "/api/quote") return json(quoteJob(await requestBody(request)));
   if (request.method === "POST" && url.pathname === "/api/executions") return json(await createExecution(await requestBody(request)), { status: 201 });
   if (request.method === "GET" && url.pathname === "/api/executions") {

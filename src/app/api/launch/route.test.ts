@@ -18,6 +18,7 @@ describe("GET /api/launch", () => {
       launchSurfaces: {
         console: "https://knot.example/",
         launchKit: "https://knot.example/api/launch",
+        marketplace: "https://knot.example/api/marketplace",
         quote: "https://knot.example/api/quote",
         execute: "https://knot.example/api/executions",
       },
@@ -27,6 +28,7 @@ describe("GET /api/launch", () => {
     });
     expect(body.utility).toContain("Buyer agents can preflight provider route, expected spend, and fallback reasons before execution.");
     expect(body.evidence.proofChecklist).toContain("Accepted evidence becomes a receipt and can be checked by hash.");
+    expect(body.demoScript).toContain("Open /api/marketplace to show provider supply and accepted-settlement economics.");
     expect(body.launchGaps).toContain("Attach a clean custom domain before public judging or investor sharing.");
     expect(serialized).not.toContain("PRIVATE_KEY");
     expect(serialized).not.toContain("SECRET");

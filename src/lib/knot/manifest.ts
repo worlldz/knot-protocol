@@ -70,6 +70,12 @@ export function createKnotManifest(options: ManifestOptions = {}) {
         url: absoluteUrl(baseUrl, "/api/launch"),
         auth: "Public launch, domain, utility, and go-to-market kit. Does not expose secrets.",
       },
+      marketplace: {
+        method: "GET",
+        path: "/api/marketplace",
+        url: absoluteUrl(baseUrl, "/api/marketplace"),
+        auth: "Public provider supply, policy products, and clearing economics. Does not expose secrets.",
+      },
       quoteExecution: {
         method: "POST",
         path: "/api/quote",

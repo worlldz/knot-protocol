@@ -50,6 +50,7 @@ export function createKnotSubmission(options: SubmissionOptions = {}) {
       openapi: absoluteUrl(baseUrl, "/api/openapi"),
       manifest: absoluteUrl(baseUrl, "/api/manifest"),
       launch: absoluteUrl(baseUrl, "/api/launch"),
+      marketplace: absoluteUrl(baseUrl, "/api/marketplace"),
       quote: manifest.endpoints.quoteExecution.url,
       execute: manifest.endpoints.runExecution.url,
       verifyReceipt: manifest.endpoints.verifyReceipt.url,
@@ -70,6 +71,7 @@ export function createKnotSubmission(options: SubmissionOptions = {}) {
       "Arc Testnet contracts are deployed and source verified.",
       "OpenAPI and discovery endpoints let external agents integrate without reading the UI.",
       "The launch kit explains domain readiness, utility, revenue paths, and TGE guardrails.",
+      "The marketplace catalog explains provider supply and accepted-settlement economics.",
       "The public worker export can run quote, preview execution, receipt lookup, and verification.",
     ],
     whyNow: [

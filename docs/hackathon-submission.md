@@ -29,6 +29,7 @@ KNOT fills that gap. It sits between an autonomous buyer agent and paid provider
 - OpenAPI 3.1 at `/api/openapi`.
 - Judge-ready machine-readable brief at `/api/submission`.
 - Launch kit at `/api/launch` with domain readiness, utility, revenue paths, and TGE-safe guardrails.
+- Marketplace catalog at `/api/marketplace` with provider supply and accepted-settlement economics.
 - Arc Testnet `KnotCommerce` and `KnotVerificationHook` contracts.
 - Completed ERC-8183-style testnet job recorded in `deployments/erc8183-testnet.json`.
 - Sites-compatible public worker export for private hosted preview.
@@ -43,10 +44,11 @@ KNOT fills that gap. It sits between an autonomous buyer agent and paid provider
 6. Open a generated receipt and verify the evidence hash.
 7. Open `/.well-known/knot`, `/api/openapi`, and `/api/submission` to show external agent readiness.
 8. Open `/api/launch` to show the custom-domain plan, utility narrative, and launch path.
-9. Show the Arcscan links for the live commerce contract, hook, attestation transaction, and completed job.
+9. Open `/api/marketplace` to show provider lanes, policy products, and KNOT's accepted-settlement fee model.
+10. Show the Arcscan links for the live commerce contract, hook, attestation transaction, and completed job.
 
 ## Why it should win
 
-KNOT is not only a landing page. It has a working execution engine, policy router, provider fallback path, receipt store, receipt verifier, discovery contract, OpenAPI contract, Arc Testnet contracts, and a completed onchain job.
+KNOT is not only a landing page. It has a working execution engine, policy router, provider fallback path, receipt store, receipt verifier, discovery contract, OpenAPI contract, marketplace catalog, Arc Testnet contracts, and a completed onchain job.
 
 The product demonstrates the missing primitive for autonomous commerce: agents should not pay for answers. They should pay for verified outcomes.

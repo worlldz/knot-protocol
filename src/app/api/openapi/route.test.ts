@@ -34,6 +34,11 @@ describe("GET /api/openapi", () => {
             tags: ["Discovery"],
           },
         },
+        "/api/marketplace": {
+          get: {
+            tags: ["Marketplace"],
+          },
+        },
         "/api/executions": {
           post: {
             security: [{ bearerAuth: [] }, {}],

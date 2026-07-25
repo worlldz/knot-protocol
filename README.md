@@ -29,6 +29,7 @@ With x402, an agent can pay an HTTP service in one request. That payment proves 
 - Agent discovery and OpenAPI endpoints for machine-readable integration.
 - Judge-ready submission brief at `/api/submission`.
 - Launch, domain, utility, revenue, and TGE guardrail kit at `/api/launch`.
+- Provider marketplace catalog and accepted-settlement economics at `/api/marketplace`.
 - Sites-compatible public worker export for a lightweight hosted KNOT surface.
 - Server-side execution API with request validation, spend limits, and rate limits.
 - Durable file-backed receipts with explicit receipt lookup instead of public global history.
@@ -101,6 +102,7 @@ Useful routes:
 | `/api/openapi` | OpenAPI 3.1 contract for quote, execute, receipt, and status calls |
 | `/api/submission` | Judge-ready problem, solution, demo flow, users, and live proof brief |
 | `/api/launch` | Launch kit covering custom-domain readiness, utility, revenue paths, and TGE-safe guardrails |
+| `/api/marketplace` | Provider supply, policy products, and accepted-settlement economics |
 | `/receipt/:id` | Shareable execution receipt |
 | `POST /api/quote` | Preflight provider route, max spend, and policy blockers without storing a receipt |
 | `POST /api/executions` | Run preview or live agent execution |
@@ -157,7 +159,7 @@ if (execution.status !== "verified") {
 console.log(execution.settlement.evidenceHash);
 ```
 
-The public manifest is available at `/api/manifest` and returns the same policy presets, job templates, contract addresses, endpoint metadata, and sample request shape used by the app. Agent runtimes can start from `/.well-known/knot`, then load `/api/openapi` for the full request contract. Judges can load `/api/submission` or read [`docs/hackathon-submission.md`](docs/hackathon-submission.md) for the project brief and demo flow. The launch kit at `/api/launch` and [`docs/domain-launch-playbook.md`](docs/domain-launch-playbook.md) capture the custom-domain plan, utility narrative, revenue paths, and TGE-safe token guardrails.
+The public manifest is available at `/api/manifest` and returns the same policy presets, job templates, contract addresses, endpoint metadata, and sample request shape used by the app. Agent runtimes can start from `/.well-known/knot`, then load `/api/openapi` for the full request contract. Judges can load `/api/submission` or read [`docs/hackathon-submission.md`](docs/hackathon-submission.md) for the project brief and demo flow. The launch kit at `/api/launch` and [`docs/domain-launch-playbook.md`](docs/domain-launch-playbook.md) capture the custom-domain plan, utility narrative, revenue paths, and TGE-safe token guardrails. `/api/marketplace` explains provider supply, policy products, and KNOT's accepted-settlement fee model.
 
 Receipt verifiers can call `/api/receipts/verify?id=run_...&evidenceHash=0x...` to confirm a stored receipt still points at an accepted delivery that satisfies the original obligation.
 

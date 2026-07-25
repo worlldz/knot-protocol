@@ -95,6 +95,8 @@ The hosted environment should define:
 
 `/api/launch` should be reachable before any public share. It is the launch-facing kit with custom-domain readiness, utility, revenue paths, go-to-market wedge, and TGE-safe guardrails.
 
+`/api/marketplace` should be reachable before any public share. It explains provider supply, policy products, accepted-settlement fee economics, and buyer/provider onboarding.
+
 Receipt verification should also work:
 
 ```bash
@@ -136,6 +138,7 @@ The preview host is temporary. The canonical KNOT surface should be a purchased 
 - `/api/openapi` for integration;
 - `/api/submission` for judging;
 - `/api/launch` for launch and utility narrative;
+- `/api/marketplace` for provider supply and clearing economics;
 - `/api/system/status` for readiness;
 - `/api/quote`, `/api/executions`, and `/api/receipts/verify` for the working proof path.
 

@@ -25,6 +25,7 @@ The domain is not just cosmetic. It should make the product feel externally usab
 - `/api/openapi` returns the machine-readable integration contract.
 - `/api/submission` returns the judge-ready brief.
 - `/api/launch` returns the product launch kit.
+- `/api/marketplace` returns provider supply and accepted-settlement economics.
 - `/api/system/status` returns public readiness metadata.
 - `/api/quote` can preflight an execution route.
 - `/api/executions` can create a preview receipt.
@@ -75,7 +76,8 @@ Avoid promising token value, yield, or price. The strongest story is product uti
 9. Open `/api/openapi`.
 10. Open `/api/submission`.
 11. Open `/api/launch`.
-12. Open the Arcscan links for the commerce contract, hook, attestation, and completed job.
+12. Open `/api/marketplace`.
+13. Open the Arcscan links for the commerce contract, hook, attestation, and completed job.
 
 ## Public pilot checklist
 
