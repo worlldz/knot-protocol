@@ -4,6 +4,7 @@ import { isAddress } from "viem";
 import { z } from "zod";
 import { deliverySchema, obligationSchema } from "@/lib/knot/schemas";
 import { verifyDelivery } from "@/lib/knot/verification";
+import { getEnvValue } from "@/lib/server-env";
 import {
   ARC_TESTNET_CAIP,
   createCircleResourceServer,
@@ -33,7 +34,7 @@ async function verifyHandler(request: NextRequest): Promise<NextResponse<unknown
   });
 }
 
-const sellerAddress = process.env.X402_SELLER_ADDRESS;
+const sellerAddress = getEnvValue("X402_SELLER_ADDRESS");
 
 export const POST =
   sellerAddress && isAddress(sellerAddress)

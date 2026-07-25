@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { formatUnits, isAddress, verifyMessage, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { ARC_TESTNET, getArcRpcUrl } from "../arc-network";
+import { getFirstHexEnv } from "../server-env";
 import type { Delivery } from "./schemas";
 
 type RpcBlock = { number: string; timestamp: string };
@@ -136,10 +137,12 @@ export async function createArcBaselineDelivery(subject: string, decisionRequest
 }
 
 export async function createArcRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
-  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY
-    ?? process.env.KNOT_ATTESTER_PRIVATE_KEY
-    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
-  if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
+  const providerKey = getFirstHexEnv(
+    "KNOT_PROVIDER_PRIVATE_KEY",
+    "KNOT_ATTESTER_PRIVATE_KEY",
+    "ARC_DEPLOYER_PRIVATE_KEY",
+  );
+  if (!providerKey) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
   const snapshot = await readArcWallet(subject);
   const account = privateKeyToAccount(providerKey as Hex);
   const payload = {
@@ -174,10 +177,12 @@ export async function createArcRiskDelivery(subject: string, decisionRequest?: s
 }
 
 export async function createArcDeepRiskDelivery(subject: string, decisionRequest?: string): Promise<Delivery> {
-  const providerKey = process.env.KNOT_PROVIDER_PRIVATE_KEY
-    ?? process.env.KNOT_ATTESTER_PRIVATE_KEY
-    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
-  if (!providerKey?.startsWith("0x")) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
+  const providerKey = getFirstHexEnv(
+    "KNOT_PROVIDER_PRIVATE_KEY",
+    "KNOT_ATTESTER_PRIVATE_KEY",
+    "ARC_DEPLOYER_PRIVATE_KEY",
+  );
+  if (!providerKey) throw new Error("KNOT_PROVIDER_PRIVATE_KEY is not configured.");
   const snapshot = await readArcWallet(subject);
   const account = privateKeyToAccount(providerKey as Hex);
   const payload = {

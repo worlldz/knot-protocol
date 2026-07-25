@@ -2,6 +2,7 @@ import { withX402 } from "@x402/next";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAddress } from "viem";
 import { z } from "zod";
+import { getEnvValue } from "@/lib/server-env";
 import { ARC_TESTNET_CAIP, createCircleResourceServer } from "@/lib/x402/server";
 
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ async function settleHandler(request: NextRequest): Promise<NextResponse<unknown
   });
 }
 
-const sellerAddress = process.env.X402_SELLER_ADDRESS;
+const sellerAddress = getEnvValue("X402_SELLER_ADDRESS");
 
 export const POST = sellerAddress && isAddress(sellerAddress)
   ? withX402(settleHandler, {

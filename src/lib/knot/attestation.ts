@@ -11,6 +11,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
 import { getArcRpcUrl } from "../arc-network";
+import { getEnvValue, getFirstHexEnv } from "../server-env";
 
 const hookAbi = [
   {
@@ -49,10 +50,9 @@ export type EvidenceAttestation = {
 };
 
 export function isAttestationConfigured() {
-  const hook = process.env.KNOT_HOOK_ADDRESS;
-  const key = process.env.KNOT_ATTESTER_PRIVATE_KEY
-    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
-  return Boolean(hook && isAddress(hook) && key?.startsWith("0x"));
+  const hook = getEnvValue("KNOT_HOOK_ADDRESS");
+  const key = getFirstHexEnv("KNOT_ATTESTER_PRIVATE_KEY", "ARC_DEPLOYER_PRIVATE_KEY");
+  return Boolean(hook && isAddress(hook) && key);
 }
 
 export async function attestEvidence(
@@ -69,11 +69,10 @@ export async function attestJobEvidence(
   jobId: bigint,
   evidenceHash: string,
 ): Promise<EvidenceAttestation> {
-  const hookAddress = process.env.KNOT_HOOK_ADDRESS;
-  const privateKey = process.env.KNOT_ATTESTER_PRIVATE_KEY
-    ?? process.env.ARC_DEPLOYER_PRIVATE_KEY;
+  const hookAddress = getEnvValue("KNOT_HOOK_ADDRESS");
+  const privateKey = getFirstHexEnv("KNOT_ATTESTER_PRIVATE_KEY", "ARC_DEPLOYER_PRIVATE_KEY");
 
-  if (!hookAddress || !isAddress(hookAddress) || !privateKey?.startsWith("0x")) {
+  if (!hookAddress || !isAddress(hookAddress) || !privateKey) {
     return {
       status: "not-requested",
       jobId: null,

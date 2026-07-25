@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
+import { isAddress } from "viem";
 import arcDeployment from "../../../../../deployments/arc-testnet.json";
 import erc8183Run from "../../../../../deployments/erc8183-testnet.json";
 import { isAttestationConfigured } from "../../../../lib/knot/attestation";
+import { getEnvValue, getFirstHexEnv } from "../../../../lib/server-env";
 
 export function GET() {
-  const x402BuyerReady = Boolean(process.env.X402_BUYER_PRIVATE_KEY);
-  const x402SellerReady = Boolean(process.env.X402_SELLER_ADDRESS);
+  const x402SellerAddress = getEnvValue("X402_SELLER_ADDRESS");
+  const x402BuyerReady = Boolean(getFirstHexEnv("X402_BUYER_PRIVATE_KEY"));
+  const x402SellerReady = Boolean(x402SellerAddress && isAddress(x402SellerAddress));
   const circleAgentReady = Boolean(
-    process.env.CIRCLE_API_KEY
-    && process.env.CIRCLE_ENTITY_SECRET
-    && process.env.CIRCLE_WALLET_SET_ID,
+    getEnvValue("CIRCLE_API_KEY")
+    && getEnvValue("CIRCLE_ENTITY_SECRET")
+    && getEnvValue("CIRCLE_WALLET_SET_ID"),
   );
-  const contractReady = Boolean(process.env.KNOT_HOOK_ADDRESS);
-  const protocolApiReady = Boolean(process.env.KNOT_EXECUTION_API_KEY);
+  const hookAddress = getEnvValue("KNOT_HOOK_ADDRESS");
+  const contractReady = Boolean(hookAddress && isAddress(hookAddress));
+  const protocolApiReady = Boolean(getEnvValue("KNOT_EXECUTION_API_KEY"));
 
   return NextResponse.json({
     environment: "Arc Testnet",

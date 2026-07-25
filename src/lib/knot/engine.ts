@@ -11,6 +11,7 @@ import type {
 } from "./schemas";
 import { executionSchema } from "./schemas";
 import { verifyDelivery } from "./verification";
+import { getEnvValue, getFirstHexEnv } from "../server-env";
 
 export const defaultObligation: Obligation = {
   jobType: "counterparty",
@@ -174,13 +175,14 @@ export async function executeJob(
       }),
     );
 
+    const sellerAddress = getEnvValue("X402_SELLER_ADDRESS");
     const canSettleLive = provider.id !== "arc-baseline"
       && Boolean(options.origin)
       && Boolean(options.agentWallet || (
         options.allowProtocolFunding
-        && process.env.X402_BUYER_PRIVATE_KEY?.startsWith("0x")
+        && getFirstHexEnv("X402_BUYER_PRIVATE_KEY")
       ))
-      && Boolean(process.env.X402_SELLER_ADDRESS);
+      && Boolean(sellerAddress);
 
     if (canSettleLive) {
       try {
@@ -241,7 +243,7 @@ export async function executeJob(
           settlement: {
             status: "received",
             amountUsdc: provider.priceUsdc,
-            recipient: process.env.X402_SELLER_ADDRESS,
+            recipient: sellerAddress,
             rail: "x402-gateway",
             evidenceHash: delivery.evidenceHash,
             transactionHash: paid.transactionHash,
@@ -271,7 +273,7 @@ export async function executeJob(
           settlement: {
             status: "blocked",
             amountUsdc: 0,
-            recipient: process.env.X402_SELLER_ADDRESS,
+            recipient: sellerAddress,
             rail: "x402-gateway",
             evidenceHash: delivery.evidenceHash,
             transactionHash: null,

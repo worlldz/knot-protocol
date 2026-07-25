@@ -1,9 +1,10 @@
 import "server-only";
 
 import { BatchEvmScheme, GatewayClient } from "@circle-fin/x402-batching/client";
-import { formatUnits, isHex, type Hex } from "viem";
+import { formatUnits } from "viem";
 import { createCircleAgentSigner, ensureCircleAgentGatewayBalance } from "@/lib/circle/wallets";
 import { getArcRpcUrl } from "../arc-network";
+import { getFirstHexEnv } from "../server-env";
 
 export type PaidResource<T> = {
   data: T;
@@ -12,22 +13,22 @@ export type PaidResource<T> = {
 };
 
 export function isX402BuyerConfigured() {
-  return isHex(process.env.X402_BUYER_PRIVATE_KEY ?? "");
+  return Boolean(getFirstHexEnv("X402_BUYER_PRIVATE_KEY"));
 }
 
 export async function payForResource<T>(
   url: string,
   body: unknown,
 ): Promise<PaidResource<T>> {
-  const privateKey = process.env.X402_BUYER_PRIVATE_KEY;
+  const privateKey = getFirstHexEnv("X402_BUYER_PRIVATE_KEY");
 
-  if (!privateKey || !isHex(privateKey)) {
+  if (!privateKey) {
     throw new Error("X402_BUYER_PRIVATE_KEY is not configured.");
   }
 
   const client = new GatewayClient({
     chain: "arcTestnet",
-    privateKey: privateKey as Hex,
+    privateKey,
     rpcUrl: getArcRpcUrl(),
   });
   const result = await client.pay<T>(url, { method: "POST", body });
