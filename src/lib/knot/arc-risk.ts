@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { formatUnits, isAddress, verifyMessage, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { ARC_TESTNET } from "@/lib/arc-network";
+import { ARC_TESTNET, getArcRpcUrl } from "../arc-network";
 import type { Delivery } from "./schemas";
 
 type RpcBlock = { number: string; timestamp: string };
@@ -12,7 +12,7 @@ type RpcResponse = { id?: number; result?: unknown; error?: { message?: string }
 
 async function rpcBatch<T extends unknown[]>(requests: RpcRequest[]): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await fetch(process.env.ARC_RPC_URL ?? ARC_TESTNET.rpcUrl, {
+    const response = await fetch(getArcRpcUrl(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(requests.map((request, index) => ({ jsonrpc: "2.0", id: index + 1, ...request, params: request.params ?? [] }))),

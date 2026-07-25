@@ -10,6 +10,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
 import livePayment from "../deployments/x402-testnet.json";
+import { getArcRpcUrl } from "../src/lib/arc-network";
 import { attestJobEvidence } from "../src/lib/knot/attestation";
 
 const commerceAbi = [
@@ -131,7 +132,7 @@ async function main() {
   }
 
   const account = privateKeyToAccount(privateKey as Hex);
-  const transport = http(process.env.ARC_RPC_URL);
+  const transport = http(getArcRpcUrl());
   const publicClient = createPublicClient({ chain: arcTestnet, transport });
   const walletClient = createWalletClient({ account, chain: arcTestnet, transport });
   const transactionHashes: Record<string, Hex> = {};

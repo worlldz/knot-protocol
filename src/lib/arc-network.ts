@@ -13,6 +13,11 @@ export const ARC_TESTNET = {
   },
 } as const;
 
+export function getArcRpcUrl(value = process.env.ARC_RPC_URL) {
+  const normalized = value?.replace(/^\uFEFF/, "").trim();
+  return normalized || ARC_TESTNET.rpcUrl;
+}
+
 export type Eip1193Provider = {
   request(args: { method: string; params?: unknown[] | Record<string, unknown> }): Promise<unknown>;
   on?(event: "accountsChanged" | "chainChanged", listener: (value: unknown) => void): void;

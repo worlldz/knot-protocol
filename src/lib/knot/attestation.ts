@@ -10,6 +10,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arcTestnet } from "viem/chains";
+import { getArcRpcUrl } from "../arc-network";
 
 const hookAbi = [
   {
@@ -85,7 +86,7 @@ export async function attestJobEvidence(
 
   const validUntil = BigInt(Math.floor(Date.now() / 1000) + 86_400);
   const account = privateKeyToAccount(privateKey as Hex);
-  const transport = http(process.env.ARC_RPC_URL);
+  const transport = http(getArcRpcUrl());
   const publicClient = createPublicClient({ chain: arcTestnet, transport });
   const walletClient = createWalletClient({ account, chain: arcTestnet, transport });
 

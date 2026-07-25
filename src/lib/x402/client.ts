@@ -3,6 +3,7 @@ import "server-only";
 import { BatchEvmScheme, GatewayClient } from "@circle-fin/x402-batching/client";
 import { formatUnits, isHex, type Hex } from "viem";
 import { createCircleAgentSigner, ensureCircleAgentGatewayBalance } from "@/lib/circle/wallets";
+import { getArcRpcUrl } from "../arc-network";
 
 export type PaidResource<T> = {
   data: T;
@@ -27,7 +28,7 @@ export async function payForResource<T>(
   const client = new GatewayClient({
     chain: "arcTestnet",
     privateKey: privateKey as Hex,
-    rpcUrl: process.env.ARC_RPC_URL,
+    rpcUrl: getArcRpcUrl(),
   });
   const result = await client.pay<T>(url, { method: "POST", body });
 
