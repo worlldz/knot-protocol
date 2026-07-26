@@ -1269,3 +1269,183 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
 :root[data-theme="light"] .api-workbench > footer span {
   color: var(--ink-soft);
 }
+
+/* Product workspace: the app opens on the task, not another marketing page. */
+.console-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+  align-items: end;
+  gap: 60px;
+  padding-block: 46px 24px;
+}
+
+.console-intro > div > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--mint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.console-intro > div > span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--mint) 10%, transparent), 0 0 18px var(--mint);
+}
+
+.console-intro h1 {
+  max-width: 820px;
+  margin: 12px 0 0;
+  font-size: clamp(2.2rem, 3.2vw, 3.7rem);
+  font-weight: 610;
+  line-height: 1;
+  letter-spacing: -.05em;
+}
+
+.console-intro > p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.console-advanced {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel-solid) 82%, transparent);
+}
+
+.console-advanced > summary {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 15px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.console-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.console-advanced > summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.console-advanced > summary strong {
+  font-size: 14px;
+}
+
+.console-advanced > summary small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.console-advanced > summary > b {
+  color: var(--mint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .09em;
+}
+
+.console-advanced[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.console-advanced-body {
+  padding: 13px;
+}
+
+.console-advanced-body .policy-controls {
+  margin-top: 0;
+}
+
+.console-advanced-body .preflight-card {
+  margin-bottom: 0;
+}
+
+.console-intro + .network-ribbon {
+  margin-bottom: 18px;
+}
+
+.console-intro ~ .workspace {
+  padding-bottom: 32px;
+}
+
+@media (max-width: 900px) {
+  .console-intro {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding-block: 34px 20px;
+  }
+}
+
+@media (max-width: 620px) {
+  .console-intro {
+    padding-top: 26px;
+  }
+
+  .console-intro h1 {
+    font-size: 2.25rem;
+  }
+
+  .console-intro > p {
+    font-size: 14px;
+  }
+
+  .console-advanced > summary {
+    align-items: flex-start;
+  }
+
+  .console-advanced > summary small {
+    max-width: 230px;
+  }
+
+  .console-intro + .network-ribbon {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .console-intro + .network-ribbon .ribbon-intro {
+    display: none;
+  }
+
+  .console-intro + .network-ribbon > * {
+    min-height: 72px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .console-intro + .network-ribbon .ribbon-metric {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .console-intro + .network-ribbon .ribbon-metric:nth-of-type(3),
+  .console-intro + .network-ribbon .ribbon-metric:nth-of-type(5) {
+    border-right: 0;
+  }
+
+  .console-intro + .network-ribbon .ribbon-action {
+    grid-column: 1 / -1;
+    min-height: 54px;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .console-intro + .network-ribbon .ribbon-error {
+    grid-column: 1 / -1;
+  }
+}

@@ -62,12 +62,6 @@ type View = "console" | "receipts" | "payment" | "explore";
 type Theme = "light" | "dark";
 type SettlementMode = "preview" | "live";
 type PaymentState = { kind: "idle" | "pending" | "success" | "error"; message: string; hash?: string };
-type DemoRunState = {
-  preset: Exclude<PolicyPreset, "custom">;
-  status: "idle" | "running" | "success" | "error";
-  execution?: Execution;
-  error?: string;
-};
 type QuoteState = {
   status: "idle" | "loading" | "ready" | "error";
   key?: string;
@@ -97,27 +91,6 @@ type AgentWalletState = {
 
 const proofLabels = ["Price ceiling", "Response latency", "Data freshness", "Required schema", "Provider signature"];
 const demoSubject = "0x0000000000000000000000000000000000000001";
-const demoPolicyLadder: Array<{
-  preset: Exclude<PolicyPreset, "custom">;
-  jobType: JobType;
-  task: string;
-}> = [
-  {
-    preset: "economy",
-    jobType: "counterparty",
-    task: "Screen a counterparty wallet with the cheapest acceptable live Arc evidence.",
-  },
-  {
-    preset: "balanced",
-    jobType: "treasury",
-    task: "Decide whether a treasury agent can release a small USDC payout.",
-  },
-  {
-    preset: "strict",
-    jobType: "contract-review",
-    task: "Escalate a contract-facing wallet check to code-aware signed evidence.",
-  },
-];
 
 const resources = [
   { number: "01", icon: "SETTLE", label: "Arc network", title: "The stablecoin-native L1", copy: "Learn how Arc makes programmable money feel immediate, predictable, and EVM-native.", href: "https://www.arc.io/", tone: "lime" },
@@ -267,21 +240,6 @@ function ProtocolIcon({ kind }: { kind: string }) {
   if (kind === "MARKET") return <SignalIcon kind="market" />;
   if (kind === "EVIDENCE") return <SignalIcon kind="verify" />;
   return <SignalIcon kind="settle" />;
-}
-
-function EvidencePulse() {
-  return (
-    <div className="evidence-pulse" aria-hidden="true">
-      <div className="pulse-orbit orbit-one"><i /></div>
-      <div className="pulse-orbit orbit-two"><i /></div>
-      <div className="pulse-core"><span>5 / 5</span><strong>PROOF</strong></div>
-      <span className="pulse-node node-intent"><SignalIcon kind="intent" /><b>INTENT</b><small>DEFINE</small></span>
-      <span className="pulse-node node-market"><SignalIcon kind="market" /><b>MARKET</b><small>ROUTE</small></span>
-      <span className="pulse-node node-verify"><SignalIcon kind="verify" /><b>VERIFY</b><small>PROVE</small></span>
-      <span className="pulse-node node-settle"><SignalIcon kind="settle" /><b>SETTLE</b><small>USDC</small></span>
-      <i className="signal-packet packet-one" /><i className="signal-packet packet-two" /><i className="signal-packet packet-three" />
-    </div>
-  );
 }
 
 function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
@@ -694,37 +652,6 @@ function TraceStandby({
   );
 }
 
-function ExecutionBrief({
-  system,
-  completed,
-}: {
-  system: SystemStatus | null;
-  completed: boolean;
-}) {
-  const commerce = system?.deployment.commerce ?? "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
-  return (
-    <section className="execution-brief" aria-label="KNOT execution contract">
-      <div className="execution-brief-heading">
-        <div><span>{completed ? "TRACE SEALED" : "WHAT KNOT ENFORCES"}</span><h3>{completed ? "The decision now has an audit trail." : "A payment policy, not another prompt."}</h3></div>
-        <i><SignalIcon kind={completed ? "settle" : "verify"} /></i>
-      </div>
-      <div className="execution-brief-signal" aria-hidden="true">
-        <span>INTENT</span><i /><span>MARKET</span><i /><span>PROOF</span><i /><span>PAYMENT</span><b />
-      </div>
-      <div className="execution-brief-grid">
-        <article><span>01</span><strong>Compete</strong><p>Eligible providers quote the same measurable obligation.</p></article>
-        <article><span>02</span><strong>Verify</strong><p>Stale, unsigned, slow, or malformed work is rejected without payment.</p></article>
-        <article><span>03</span><strong>Bind</strong><p>The accepted evidence hash becomes part of the settlement receipt.</p></article>
-      </div>
-      <a className="execution-proof-link" href={`${ARC_TESTNET.explorerUrl}/address/${commerce}#code`} target="_blank" rel="noreferrer">
-        <span><i />LIVE ON ARC TESTNET</span>
-        <code>{shortAddress(commerce)}</code>
-        <b>Inspect contract <ExternalIcon /></b>
-      </a>
-    </section>
-  );
-}
-
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [subject, setSubject] = useState("");
   const [jobType, setJobType] = useState<JobType>("counterparty");
@@ -736,10 +663,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const [policyPreset, setPolicyPreset] = useState<PolicyPreset>("balanced");
   const [settlementMode, setSettlementMode] = useState<SettlementMode>("preview");
   const [execution, setExecution] = useState<Execution | null>(null);
-  const [demoRuns, setDemoRuns] = useState<DemoRunState[]>(
-    demoPolicyLadder.map((item) => ({ preset: item.preset, status: "idle" })),
-  );
-  const [demoRunning, setDemoRunning] = useState(false);
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "idle" });
   const [visibleEvents, setVisibleEvents] = useState(0);
   const [running, setRunning] = useState(false);
@@ -775,10 +698,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
   const settlementEvent = execution?.events.findLast((item) => item.kind === "settlement");
   const settlementBlocked = execution?.settlement.status === "blocked";
   const busy = running || agent.busy || agent.funding || Boolean(execution && !completed);
-  const commerceAddress = system?.deployment.commerce ?? "0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
-  const commerceExplorerUrl = system?.deployment.explorerUrl ?? "https://testnet.arcscan.app/address/0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f";
-  const completedJobId = system?.latestProof.jobId ?? "1";
-  const completionExplorerUrl = system?.latestProof.completionExplorerUrl ?? "https://testnet.arcscan.app/tx/0x97b6e863f1308fc11d2484495f9742be54e5f721ceaed55820e864b2b0a30f8d";
   const quoteKey = [
     subjectAddress.toLowerCase(),
     jobType,
@@ -874,50 +793,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
     }
   }
 
-  async function runPolicyLadder() {
-    if (demoRunning || busy) return;
-    setError(null);
-    setDemoRunning(true);
-    setSettlementMode("preview");
-    setSubject(demoSubject);
-    setExecution(null);
-    setVisibleEvents(0);
-    setDemoRuns(demoPolicyLadder.map((item) => ({ preset: item.preset, status: "idle" })));
-
-    let finalExecution: Execution | null = null;
-    try {
-      for (const item of demoPolicyLadder) {
-        setDemoRuns((runs) => runs.map((run) => run.preset === item.preset ? { preset: item.preset, status: "running" } : run));
-        const policy = POLICY_PRESETS[item.preset];
-        const nextExecution = await requestExecution({
-          jobType: item.jobType,
-          policyPreset: item.preset,
-          task: item.task,
-          subject: demoSubject,
-          maxPriceUsdc: policy.maxPriceUsdc,
-          maxAgeSeconds: policy.maxAgeSeconds,
-          maxLatencyMs: policy.maxLatencyMs,
-          requiredFields: policy.requiredFields,
-          requireSignature: policy.requireSignature,
-        });
-        finalExecution = nextExecution;
-        setDemoRuns((runs) => runs.map((run) => run.preset === item.preset ? { preset: item.preset, status: "success", execution: nextExecution } : run));
-      }
-      if (finalExecution) {
-        applyPolicy("strict");
-        setJobType("contract-review");
-        setInstruction(demoPolicyLadder[2].task);
-        setExecution(finalExecution);
-      }
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Policy ladder could not complete.";
-      setError(message);
-      setDemoRuns((runs) => runs.map((run) => run.status === "running" ? { ...run, status: "error", error: message } : run));
-    } finally {
-      setDemoRunning(false);
-    }
-  }
-
   async function runAgent() {
     setError(null);
     if (!isAddress(subjectAddress)) return setError("Enter a valid Arc wallet address to assess.");
@@ -975,48 +850,11 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
   return (
     <>
-      <section className="hero page-shell">
-        <div className="hero-kicker"><span>01</span><p>OUTCOME CLEARING FOR AUTONOMOUS COMMERCE</p></div>
-        <div className="hero-grid">
-          <h1 aria-label="Never pay an API for an answer you cannot trust.">Never pay an API <span>for an answer you cannot trust.</span></h1>
-          <div className="hero-aside hero-trust-card">
-            <div className="hero-aside-status"><span><i />TRUST ENGINE</span><b>LIVE / ARC TESTNET</b></div>
-            <EvidencePulse />
-            <p><strong>KNOT is the clearing layer for machine work.</strong> Define what a valid result means, let providers compete, and release USDC only when the winning evidence satisfies the policy.</p>
-            <div className="hero-proof"><span><i />Evidence-bound</span><span><i />Fallback-aware</span><span><i />Settlement-safe</span></div>
-          </div>
-        </div>
+      <section className="console-intro page-shell">
+        <div><span><i /> LIVE CLEARING WORKSPACE</span><h1>Define the decision. KNOT handles the proof.</h1></div>
+        <p>Choose the work, set the protection level, and watch KNOT route providers before any USDC can settle.</p>
       </section>
-
       <NetworkRibbon wallet={wallet} agent={agent} />
-      <section className="demo-lab page-shell" aria-label="Policy ladder demo">
-        <div className="demo-lab-copy">
-          <span><i />JUDGE MODE</span>
-          <h2>Run the whole proof ladder.</h2>
-          <p>One click runs the same wallet through Economy, Balanced, and Strict. KNOT should choose a different provider route and price as the obligation gets harder.</p>
-        </div>
-        <div className="demo-lab-runs">
-          {demoRuns.map((run) => {
-            const policy = POLICY_PRESETS[run.preset];
-            const accepted = run.execution?.attempts.find((attempt) => attempt.outcome === "accepted");
-            return (
-              <article className={`demo-run-card is-${run.status}`} key={run.preset}>
-                <span>{policy.label}</span>
-                <h3>{accepted?.provider ?? policy.expectedProvider}</h3>
-                <dl>
-                  <div><dt>Route</dt><dd>{run.execution ? `${run.execution.attempts.length} attempt${run.execution.attempts.length === 1 ? "" : "s"}` : "pending"}</dd></div>
-                  <div><dt>Price</dt><dd>{run.execution ? `${run.execution.settlement.amountUsdc.toFixed(3)} USDC` : `up to ${policy.maxPriceUsdc.toFixed(3)}`}</dd></div>
-                </dl>
-                <small>{run.status === "running" ? "verifying live evidence" : run.status === "success" ? `receipt ${run.execution?.id}` : run.status === "error" ? run.error : policy.description}</small>
-              </article>
-            );
-          })}
-        </div>
-        <button type="button" className="demo-lab-action" onClick={() => void runPolicyLadder()} disabled={demoRunning || busy}>
-          {demoRunning ? "Running policy ladder" : "Run 3-policy proof"}
-          <ArrowIcon />
-        </button>
-      </section>
       <section className="workspace page-shell" aria-label="KNOT execution workspace">
         <article className="mission-panel panel-light">
           <div className="section-heading"><div><span>Obligation builder</span><h2>Define the decision.</h2></div></div>
@@ -1037,41 +875,49 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
           <div className="policy-presets" role="group" aria-label="Execution policy preset">
             {(["economy", "balanced", "strict"] as const).map((preset) => <button key={preset} type="button" className={policyPreset === preset ? "active" : ""} onClick={() => applyPolicy(preset)} aria-label={`${POLICY_PRESETS[preset].label}: ${POLICY_PRESETS[preset].expectedProvider}, up to ${POLICY_PRESETS[preset].maxPriceUsdc.toFixed(3)} USDC`}><span>{POLICY_PRESETS[preset].label}</span><small>{POLICY_PRESETS[preset].expectedProvider} · up to {POLICY_PRESETS[preset].maxPriceUsdc.toFixed(3)} USDC</small></button>)}
           </div>
-          <div className="policy-controls">
-            <label><span>Max price</span><div><input value={maxPrice} inputMode="decimal" onChange={(event) => { setMaxPrice(event.target.value); setPolicyPreset("custom"); }} /><b>USDC</b></div></label>
-            <label><span>Max age</span><div><input type="number" min={1} max={86400} value={maxAge} onChange={(event) => { setMaxAge(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>SEC</b></div></label>
-            <label><span>Max latency</span><div><input type="number" min={1} max={30000} value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>MS</b></div></label>
-            <button type="button" className={requireSignature ? "is-required" : ""} onClick={() => { setRequireSignature((value) => !value); setPolicyPreset("custom"); }}><span>Signed proof</span><b>{requireSignature ? "REQUIRED" : "OPTIONAL"}</b></button>
-          </div>
-          <div className={`preflight-card is-${currentQuoteState.status}`}>
-            <div className="preflight-topline">
-              <div><span>Preflight market quote</span><strong>{currentQuoteState.quote?.recommendedProvider?.name ?? (currentQuoteState.status === "error" ? "Needs attention" : "No execution yet")}</strong></div>
-              <button type="button" onClick={() => void quoteCurrentObligation()} disabled={currentQuoteState.status === "loading" || running || demoRunning}>
-                {currentQuoteState.status === "loading" ? "Quoting" : "Quote route"}
-              </button>
-            </div>
-            {currentQuoteState.status === "ready" && currentQuoteState.quote ? (
-              <>
-                <dl className="preflight-metrics">
-                  <div><dt>Decision</dt><dd>{currentQuoteState.quote.decision.toUpperCase()}</dd></div>
-                  <div><dt>Max spend</dt><dd>{currentQuoteState.quote.maxSpendUsdc.toFixed(3)} USDC</dd></div>
-                  <div><dt>Route</dt><dd>{currentQuoteState.quote.route.length} provider{currentQuoteState.quote.route.length === 1 ? "" : "s"}</dd></div>
-                </dl>
-                <div className="preflight-route">
-                  {currentQuoteState.quote.route.map((provider) => (
-                    <article className={`preflight-provider is-${provider.expectedOutcome}`} key={provider.id}>
-                      <span>{provider.name}</span>
-                      <strong>{provider.priceUsdc.toFixed(3)} USDC</strong>
-                      <small>{provider.canSatisfy ? "Can satisfy obligation" : provider.reasons[0]}</small>
-                    </article>
-                  ))}
+          <details className="console-advanced">
+            <summary>
+              <span><strong>Advanced policy</strong><small>{Number(maxPrice || 0).toFixed(3)} USDC · {maxAge}s freshness · {requireSignature ? "signed" : "signature optional"}</small></span>
+              <b>EDIT</b>
+            </summary>
+            <div className="console-advanced-body">
+              <div className="policy-controls">
+                <label><span>Max price</span><div><input value={maxPrice} inputMode="decimal" onChange={(event) => { setMaxPrice(event.target.value); setPolicyPreset("custom"); }} /><b>USDC</b></div></label>
+                <label><span>Max age</span><div><input type="number" min={1} max={86400} value={maxAge} onChange={(event) => { setMaxAge(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>SEC</b></div></label>
+                <label><span>Max latency</span><div><input type="number" min={1} max={30000} value={maxLatency} onChange={(event) => { setMaxLatency(Number(event.target.value)); setPolicyPreset("custom"); }} /><b>MS</b></div></label>
+                <button type="button" className={requireSignature ? "is-required" : ""} onClick={() => { setRequireSignature((value) => !value); setPolicyPreset("custom"); }}><span>Signed proof</span><b>{requireSignature ? "REQUIRED" : "OPTIONAL"}</b></button>
+              </div>
+              <div className={`preflight-card is-${currentQuoteState.status}`}>
+                <div className="preflight-topline">
+                  <div><span>Preflight market quote</span><strong>{currentQuoteState.quote?.recommendedProvider?.name ?? (currentQuoteState.status === "error" ? "Needs attention" : "No execution yet")}</strong></div>
+                  <button type="button" onClick={() => void quoteCurrentObligation()} disabled={currentQuoteState.status === "loading" || running}>
+                    {currentQuoteState.status === "loading" ? "Quoting" : "Quote route"}
+                  </button>
                 </div>
-                {currentQuoteState.quote.blockers.length > 0 && <p className="preflight-error">{currentQuoteState.quote.blockers.join(" ")}</p>}
-              </>
-            ) : (
-              <p className={currentQuoteState.status === "error" ? "preflight-error" : ""}>{currentQuoteState.error ?? "Ask KNOT to quote the provider route before any proof run or wallet-funded settlement."}</p>
-            )}
-          </div>
+                {currentQuoteState.status === "ready" && currentQuoteState.quote ? (
+                  <>
+                    <dl className="preflight-metrics">
+                      <div><dt>Decision</dt><dd>{currentQuoteState.quote.decision.toUpperCase()}</dd></div>
+                      <div><dt>Max spend</dt><dd>{currentQuoteState.quote.maxSpendUsdc.toFixed(3)} USDC</dd></div>
+                      <div><dt>Route</dt><dd>{currentQuoteState.quote.route.length} provider{currentQuoteState.quote.route.length === 1 ? "" : "s"}</dd></div>
+                    </dl>
+                    <div className="preflight-route">
+                      {currentQuoteState.quote.route.map((provider) => (
+                        <article className={`preflight-provider is-${provider.expectedOutcome}`} key={provider.id}>
+                          <span>{provider.name}</span>
+                          <strong>{provider.priceUsdc.toFixed(3)} USDC</strong>
+                          <small>{provider.canSatisfy ? "Can satisfy obligation" : provider.reasons[0]}</small>
+                        </article>
+                      ))}
+                    </div>
+                    {currentQuoteState.quote.blockers.length > 0 && <p className="preflight-error">{currentQuoteState.quote.blockers.join(" ")}</p>}
+                  </>
+                ) : (
+                  <p className={currentQuoteState.status === "error" ? "preflight-error" : ""}>{currentQuoteState.error ?? "Quote the provider route before a live settlement if you want to inspect price and fallback order."}</p>
+                )}
+              </div>
+            </div>
+          </details>
           <div className="settlement-choice" role="group" aria-label="Settlement mode">
             <button type="button" className={settlementMode === "preview" ? "active" : ""} onClick={() => setSettlementMode("preview")}><span>Proof preview</span><small>Live Arc data, no USDC charged</small></button>
             <button type="button" className={settlementMode === "live" ? "active" : ""} onClick={() => setSettlementMode("live")}><span>Live clearing</span><small>Agent pays only the accepted provider</small></button>
@@ -1086,7 +932,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             {visibleTrace.length === 0 ? <TraceStandby maxPrice={maxPrice} maxAge={maxAge} requireSignature={requireSignature} quote={currentQuoteState.quote} /> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
             <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
           </article>
-          <ExecutionBrief system={system} completed={completed} />
         </div>
       </section>
 
@@ -1123,15 +968,6 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
         </div>
       </section>}
 
-      <section className="architecture page-shell">
-        <div className="section-index light"><span>03</span><p>THE PROTOCOL KNOT</p></div>
-        <div className="architecture-head"><h2>Payment is easy.<br />Proof is the hard part.</h2><p>KNOT is not another agent wallet. It is a reusable clearing layer for API marketplaces, autonomous treasury operations, and agent-to-agent services.</p></div>
-        <div className="flow-map">{[["01", "INTENT", "Buyer defines measurable constraints", "PRICE · AGE · LATENCY · SCHEMA"], ["02", "MARKET", "Providers expose paid services over x402", "QUOTE · PROOF · REPUTATION"], ["03", "EVIDENCE", "KNOT verifies output and binds its hash", "FRESHNESS · SIGNATURE · HASH"], ["04", "SETTLE", "ERC-8183 releases USDC or keeps it blocked", "USDC · GATEWAY · FINALITY"]].map(([number, title, copy, telemetry], index) => <div className="flow-node" key={title}><div className="flow-node-top"><span>{number}</span><i><ProtocolIcon kind={title} /></i></div><h3>{title}</h3><p>{copy}</p><small>{telemetry}</small>{index < 3 && <ArrowIcon />}</div>)}</div>
-        <div className="protocol-deployment"><div><span><i />ARC TESTNET / JOB #{completedJobId} COMPLETED</span><strong>KnotCommerce and its evidence hook are live and source-verified.</strong></div><code>{shortAddress(commerceAddress)}</code><a href={`${commerceExplorerUrl}#code`} target="_blank" rel="noreferrer">Inspect commerce kernel <ExternalIcon /></a><a href={completionExplorerUrl} target="_blank" rel="noreferrer">View completed job <ExternalIcon /></a></div>
-        <div className="protocol-strip"><p><SignalIcon kind="market" /><span>Circle Gateway</span>HTTP-native x402 authorization and batched nanopayment settlement.</p><p><SignalIcon kind="verify" /><span>ERC-8183 Hook</span>Live settlements anchor accepted evidence for an enforceable job completion.</p><p><SignalIcon kind="settle" /><span>Arc + USDC</span>Stablecoin-native value, predictable fees, and deterministic finality.</p></div>
-      </section>
-
-      <BuildOnArcBand />
     </>
   );
 }
