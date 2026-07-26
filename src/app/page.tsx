@@ -1,5 +1,5 @@
-import { KnotConsole } from "@/components/knot-console";
+import { KnotLanding } from "@/components/knot-landing";
 
 export default function Home() {
-  return <KnotConsole />;
+  return <KnotLanding />;
 }

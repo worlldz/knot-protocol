@@ -8,6 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: [
         "/",
+        "/app",
         "/.well-known/knot",
         "/api/openapi",
         "/api/manifest",

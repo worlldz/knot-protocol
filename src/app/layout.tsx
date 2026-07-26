@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/space-grotesk";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
+import "./landing.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://knot-omega.vercel.app";
 const description = "Programmable payment policy for autonomous agents. KNOT releases USDC only when purchased machine work satisfies verifiable conditions.";
@@ -53,8 +58,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const themeScript = `
+    (() => {
+      try {
+        const stored = localStorage.getItem("knot-theme");
+        const theme = stored === "light" || stored === "dark" ? stored : "dark";
+        document.documentElement.dataset.theme = theme;
+      } catch {
+        document.documentElement.dataset.theme = "dark";
+      }
+    })();
+  `;
+
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

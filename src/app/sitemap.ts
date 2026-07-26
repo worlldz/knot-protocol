@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const publicRoutes: Array<[path: string, priority: number]> = [
     ["", 1],
+    ["/app", 0.94],
     ["/.well-known/knot", 0.72],
     ["/api/openapi", 0.7],
     ["/api/manifest", 0.7],

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAddress } from "viem";
 import {
@@ -624,7 +625,7 @@ function SiteHeader({ view, setView, theme, setTheme, wallet }: { view: View; se
   return (
     <header className="app-header">
       <nav className="site-nav page-shell">
-        <button className="brand brand-button" type="button" onClick={() => setView("console")} aria-label="KNOT clearing console"><KnotMark /><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></button>
+        <Link className="brand brand-button" href="/" aria-label="KNOT home"><KnotMark /><span><b>KNOT</b><small>VERIFICATION-NATIVE SETTLEMENT</small></span></Link>
         <div className="view-tabs" role="tablist" aria-label="KNOT views">
           <button type="button" role="tab" aria-selected={view === "console"} className={view === "console" ? "active" : ""} onClick={() => setView("console")}>Verify</button>
           <button type="button" role="tab" aria-selected={view === "receipts"} className={view === "receipts" ? "active" : ""} onClick={() => setView("receipts")}>Receipts</button>
@@ -1399,7 +1400,7 @@ function BuildOnArcBand() {
     <section className="build-band page-shell">
       <div className="build-band-glow" aria-hidden="true" />
       <div className="build-band-copy"><span>BUILT FOR PROGRAMMABLE MONEY</span><h2>Build on Arc</h2><p>Stablecoin-native settlement, sub-second finality, and an emerging machine economy give KNOT the right place to make verified work payable.</p><a href="https://docs.arc.io/build" target="_blank" rel="noreferrer">Start building <ArrowIcon /></a></div>
-      <div className="arc-brand-lockup"><small>POWERED BY</small><Image src="/arc-logo-official.webp" alt="Arc" width={260} height={71} style={{ width: "100%", maxWidth: 260, height: "auto" }} priority /></div>
+      <div className="arc-brand-lockup"><small>POWERED BY</small><span className="arc-brand-logo"><Image src="/arc-logo-official.webp" alt="Arc" fill sizes="(max-width: 640px) 70vw, 260px" priority /></span></div>
       <div className="x402-signal" aria-hidden="true"><span>HTTP</span><strong>402</strong><span>PAYMENT REQUIRED</span></div>
     </section>
   );
