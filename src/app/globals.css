@@ -1449,3 +1449,443 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, select:focus-visi
     grid-column: 1 / -1;
   }
 }
+
+/* The second workspace row is a live policy field, not dead grid space. */
+.execution-column {
+  grid-template-rows: 680px minmax(340px, 1fr);
+}
+
+.settlement-field {
+  --field-signal: var(--acid);
+  position: relative;
+  min-height: 340px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 22% 50%, color-mix(in srgb, var(--field-signal) 11%, transparent), transparent 20rem),
+    radial-gradient(circle at 96% 4%, rgba(92, 240, 187, .1), transparent 18rem),
+    linear-gradient(145deg, #0d1713, #07100d);
+  color: #edf8f1;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, .32);
+  isolation: isolate;
+}
+
+.settlement-field::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(90deg, black, transparent 72%);
+  content: "";
+}
+
+.settlement-field.is-processing {
+  --field-signal: var(--mint);
+}
+
+.settlement-field.is-cleared {
+  --field-signal: var(--mint);
+  border-color: color-mix(in srgb, var(--mint) 34%, rgba(255, 255, 255, .11));
+}
+
+.settlement-field.is-blocked {
+  --field-signal: var(--red);
+  border-color: color-mix(in srgb, var(--red) 38%, rgba(255, 255, 255, .11));
+}
+
+.settlement-field > header {
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  padding: 0 27px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .11em;
+}
+
+.settlement-field > header span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a7bbb0;
+}
+
+.settlement-field > header i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--field-signal);
+  box-shadow: 0 0 15px var(--field-signal);
+  animation: status-pulse 1.8s ease-in-out infinite;
+}
+
+.settlement-field > header b {
+  color: var(--field-signal);
+}
+
+.settlement-field-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(270px, .9fr) minmax(280px, 1.1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+}
+
+.settlement-field-scene {
+  position: relative;
+  width: min(100%, 310px);
+  aspect-ratio: 1.38;
+  justify-self: center;
+  perspective: 850px;
+  transform-style: preserve-3d;
+}
+
+.field-plane {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72%;
+  height: 72%;
+  border: 1px solid color-mix(in srgb, var(--field-signal) 22%, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--field-signal) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--field-signal) 11%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  transform-style: preserve-3d;
+}
+
+.field-plane-back {
+  transform: translate(-50%, -50%) rotateX(67deg) rotateZ(45deg) translateZ(-42px);
+  opacity: .6;
+}
+
+.field-plane-mid {
+  transform: translate(-50%, -50%) rotateX(67deg) rotateZ(45deg) translateZ(18px);
+  opacity: .22;
+}
+
+.field-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 1px solid color-mix(in srgb, var(--field-signal) 40%, transparent);
+  border-radius: 50%;
+  transform-style: preserve-3d;
+}
+
+.field-ring i {
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--field-signal);
+  box-shadow: 0 0 18px var(--field-signal);
+}
+
+.field-ring-a {
+  width: 76%;
+  aspect-ratio: 1;
+  animation: field-orbit-a 12s linear infinite;
+}
+
+.field-ring-b {
+  width: 55%;
+  aspect-ratio: 1;
+  border-style: dashed;
+  animation: field-orbit-b 8s linear infinite reverse;
+}
+
+.field-ring-c {
+  width: 88%;
+  aspect-ratio: 1;
+  border-color: color-mix(in srgb, var(--mint) 18%, transparent);
+  animation: field-orbit-c 17s linear infinite;
+}
+
+.is-processing .field-ring-a,
+.is-processing .field-ring-b,
+.is-processing .field-ring-c {
+  animation-duration: 3.8s;
+}
+
+.field-core {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--field-signal) 48%, transparent);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 40% 34%, color-mix(in srgb, var(--field-signal) 19%, transparent), transparent 42%),
+    rgba(7, 16, 13, .88);
+  transform: translate(-50%, -50%) translateZ(64px);
+  box-shadow:
+    0 0 0 14px color-mix(in srgb, var(--field-signal) 3%, transparent),
+    0 0 55px color-mix(in srgb, var(--field-signal) 16%, transparent);
+}
+
+.field-core .knot-mark {
+  width: 33px;
+  height: 33px;
+  flex-basis: 33px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.field-core .knot-mark i {
+  inset: 7px 9px;
+}
+
+.field-core strong {
+  color: var(--field-signal);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+
+.field-chip {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 999px;
+  background: rgba(9, 21, 16, .86);
+  padding: 6px 8px;
+  color: #b6c8be;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, .22);
+  backdrop-filter: blur(8px);
+}
+
+.field-chip-intent {
+  left: 1%;
+  top: 20%;
+  animation: field-chip-float 4.3s ease-in-out infinite;
+}
+
+.field-chip-proof {
+  right: 1%;
+  top: 31%;
+  animation: field-chip-float 4.8s ease-in-out -1.2s infinite;
+}
+
+.field-chip-usdc {
+  right: 12%;
+  bottom: 9%;
+  color: var(--field-signal);
+  animation: field-chip-float 4s ease-in-out -.7s infinite;
+}
+
+.settlement-field-copy > span {
+  color: var(--field-signal);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.settlement-field-copy h3 {
+  max-width: 430px;
+  margin: 13px 0 11px;
+  font-size: clamp(25px, 2vw, 34px);
+  font-weight: 570;
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+
+.settlement-field-copy p {
+  max-width: 480px;
+  margin: 0;
+  color: #a9bbb1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settlement-field > dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 0 27px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .1);
+}
+
+.settlement-field > dl div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(255, 255, 255, .035);
+  padding: 11px 13px;
+}
+
+.settlement-field dt {
+  color: #8da096;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.settlement-field dd {
+  overflow: hidden;
+  margin: 0;
+  color: #edf8f1;
+  font-size: 11px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme="light"] .settlement-field {
+  border-color: rgba(13, 38, 27, .2);
+  background:
+    radial-gradient(circle at 18% 48%, color-mix(in srgb, var(--field-signal) 22%, transparent), transparent 19rem),
+    radial-gradient(circle at 96% 4%, rgba(46, 190, 142, .16), transparent 17rem),
+    linear-gradient(145deg, #fffef8, #e9f0e6);
+  color: #0a1912;
+  box-shadow:
+    0 28px 75px rgba(42, 65, 52, .16),
+    inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+:root[data-theme="light"] .settlement-field::before {
+  background:
+    linear-gradient(rgba(10, 32, 21, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 32, 21, .045) 1px, transparent 1px);
+}
+
+:root[data-theme="light"] .settlement-field > header,
+:root[data-theme="light"] .settlement-field > dl {
+  border-color: rgba(13, 38, 27, .16);
+}
+
+:root[data-theme="light"] .settlement-field > header span,
+:root[data-theme="light"] .settlement-field-copy p,
+:root[data-theme="light"] .settlement-field dt {
+  color: #50665a;
+}
+
+:root[data-theme="light"] .field-core {
+  background:
+    radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--field-signal) 30%, white), transparent 48%),
+    rgba(255, 255, 250, .92);
+  box-shadow:
+    0 0 0 14px color-mix(in srgb, var(--field-signal) 6%, transparent),
+    0 18px 45px rgba(35, 67, 49, .18);
+}
+
+:root[data-theme="light"] .field-core .knot-mark {
+  background: #0a1912;
+}
+
+:root[data-theme="light"] .field-chip {
+  border-color: rgba(13, 38, 27, .16);
+  background: rgba(255, 255, 248, .82);
+  color: #344b3e;
+  box-shadow: 0 9px 24px rgba(42, 65, 52, .13);
+}
+
+:root[data-theme="light"] .settlement-field > dl {
+  background: rgba(13, 38, 27, .13);
+}
+
+:root[data-theme="light"] .settlement-field > dl div {
+  background: rgba(255, 255, 250, .78);
+}
+
+:root[data-theme="light"] .settlement-field dd {
+  color: #0a1912;
+}
+
+@keyframes field-orbit-a {
+  to { transform: translate(-50%, -50%) rotateX(68deg) rotateZ(360deg); }
+}
+
+@keyframes field-orbit-b {
+  from { transform: translate(-50%, -50%) rotateY(66deg) rotateZ(0deg); }
+  to { transform: translate(-50%, -50%) rotateY(66deg) rotateZ(360deg); }
+}
+
+@keyframes field-orbit-c {
+  from { transform: translate(-50%, -50%) rotateX(48deg) rotateY(38deg) rotateZ(0deg); }
+  to { transform: translate(-50%, -50%) rotateX(48deg) rotateY(38deg) rotateZ(360deg); }
+}
+
+@keyframes field-chip-float {
+  50% { transform: translateY(-8px) translateZ(26px); }
+}
+
+@media (max-width: 1180px) {
+  .execution-column {
+    grid-template-rows: 650px minmax(360px, auto);
+  }
+
+  .settlement-field {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 680px) {
+  .execution-column {
+    grid-template-rows: 720px auto;
+  }
+
+  .trace-panel {
+    height: 720px;
+    min-height: 720px;
+    max-height: 720px;
+  }
+
+  .settlement-field {
+    min-height: 520px;
+  }
+
+  .settlement-field-body {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 16px 20px;
+  }
+
+  .settlement-field-scene {
+    width: min(100%, 250px);
+  }
+
+  .settlement-field-copy {
+    text-align: center;
+  }
+
+  .settlement-field-copy p {
+    margin-inline: auto;
+  }
+
+  .settlement-field > header {
+    padding-inline: 20px;
+  }
+
+  .settlement-field > dl {
+    margin: 10px 20px 20px;
+  }
+}

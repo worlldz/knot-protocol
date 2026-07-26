@@ -652,6 +652,84 @@ function TraceStandby({
   );
 }
 
+function SettlementField({
+  execution,
+  visibleEvents,
+  running,
+  completed,
+}: {
+  execution: Execution | null;
+  visibleEvents: number;
+  running: boolean;
+  completed: boolean;
+}) {
+  const phase = completed
+    ? execution?.status === "verified" ? "cleared" : "blocked"
+    : running || visibleEvents > 0 ? "processing" : "locked";
+  const acceptedProvider = execution?.attempts.find((attempt) => attempt.outcome === "accepted")?.provider;
+  const stateCopy = {
+    locked: {
+      eyebrow: "POLICY FIELD / STANDBY",
+      title: "Value waits at the proof boundary.",
+      copy: "Price, freshness, schema, and signature become one release condition before a provider can be paid.",
+      core: "LOCKED",
+    },
+    processing: {
+      eyebrow: "POLICY FIELD / CLEARING",
+      title: "Evidence is crossing the decision surface.",
+      copy: "KNOT is preserving rejected work, fallback routing, and the proof that can unlock settlement.",
+      core: "VERIFY",
+    },
+    cleared: {
+      eyebrow: "POLICY FIELD / RELEASED",
+      title: "Verified work crossed the release boundary.",
+      copy: `${acceptedProvider ?? "The accepted provider"} satisfied the obligation. The evidence and payment verdict now share one receipt.`,
+      core: "CLEARED",
+    },
+    blocked: {
+      eyebrow: "POLICY FIELD / HELD",
+      title: "The policy kept settlement locked.",
+      copy: "No delivery satisfied every condition, so value stayed with the agent and the failed route remained auditable.",
+      core: "HELD",
+    },
+  }[phase];
+
+  return (
+    <aside className={`settlement-field is-${phase}`} aria-label="Live settlement policy field">
+      <header>
+        <span><i /> {stateCopy.eyebrow}</span>
+        <b>{String(Math.min(visibleEvents, execution?.events.length ?? 0)).padStart(2, "0")} / {String(execution?.events.length ?? 9).padStart(2, "0")}</b>
+      </header>
+      <div className="settlement-field-body">
+        <div className="settlement-field-scene" aria-hidden="true">
+          <div className="field-plane field-plane-back" />
+          <div className="field-plane field-plane-mid" />
+          <div className="field-ring field-ring-a"><i /></div>
+          <div className="field-ring field-ring-b"><i /></div>
+          <div className="field-ring field-ring-c"><i /></div>
+          <div className="field-core">
+            <KnotMark />
+            <strong>{stateCopy.core}</strong>
+          </div>
+          <span className="field-chip field-chip-intent">INTENT</span>
+          <span className="field-chip field-chip-proof">PROOF</span>
+          <span className="field-chip field-chip-usdc">USDC</span>
+        </div>
+        <div className="settlement-field-copy">
+          <span>PROGRAMMABLE RELEASE</span>
+          <h3>{stateCopy.title}</h3>
+          <p>{stateCopy.copy}</p>
+        </div>
+      </div>
+      <dl>
+        <div><dt>Policy</dt><dd>{execution ? `${execution.obligation.maxPriceUsdc.toFixed(3)} USDC max` : "Defined by buyer"}</dd></div>
+        <div><dt>Evidence</dt><dd>{completed ? execution?.settlement.evidenceHash ? "Bound to receipt" : "Not accepted" : "Required"}</dd></div>
+        <div><dt>Settlement</dt><dd>{completed ? `${execution?.settlement.amountUsdc.toFixed(3) ?? "0.000"} USDC` : "Conditional"}</dd></div>
+      </dl>
+    </aside>
+  );
+}
+
 function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useArcWallet>; agent: AgentWalletState; system: SystemStatus | null }) {
   const [subject, setSubject] = useState("");
   const [jobType, setJobType] = useState<JobType>("counterparty");
@@ -932,6 +1010,12 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
             {visibleTrace.length === 0 ? <TraceStandby maxPrice={maxPrice} maxAge={maxAge} requireSignature={requireSignature} quote={currentQuoteState.quote} /> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
             <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
           </article>
+          <SettlementField
+            execution={execution}
+            visibleEvents={visibleEvents}
+            running={busy}
+            completed={completed}
+          />
         </div>
       </section>
 

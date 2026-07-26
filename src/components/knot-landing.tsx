@@ -59,6 +59,22 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
   );
 }
 
+function ProtocolSculpture() {
+  return (
+    <div className="protocol-sculpture" aria-hidden="true">
+      <div className="sculpture-axis">
+        <div className="sculpture-ring sculpture-ring-a"><i /></div>
+        <div className="sculpture-ring sculpture-ring-b"><i /></div>
+        <div className="sculpture-ring sculpture-ring-c"><i /></div>
+        <div className="sculpture-core"><KnotMark /><span>POLICY</span></div>
+        <span className="sculpture-shard shard-a">01</span>
+        <span className="sculpture-shard shard-b">USDC</span>
+        <span className="sculpture-shard shard-c">PASS</span>
+      </div>
+    </div>
+  );
+}
+
 function ProofRail() {
   return (
     <figure className="proof-rail" aria-label="KNOT routes a request, rejects weak work, and settles accepted evidence">
@@ -327,7 +343,10 @@ export function KnotLanding() {
               <a className="landing-text-link" href="#method">See the clearing method <span>↓</span></a>
             </div>
           </div>
-          <ProofRail />
+          <div className="landing-hero-stage">
+            <ProtocolSculpture />
+            <ProofRail />
+          </div>
         </div>
         <div className="landing-shell landing-foundation" aria-label="Protocol foundation">
           <span>BUILT ON ARC</span>
