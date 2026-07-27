@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KNOT Mid-Submission Deck</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06110d;
+      --panel: #0b1b15;
+      --panel-2: #10251d;
+      --ink: #effbf2;
+      --muted: #9bb4a8;
+      --line: rgba(239, 251, 242, .14);
+      --mint: #5cf0bb;
+      --acid: #c7ff2e;
+      --red: #ff806c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(92, 240, 187, .18), transparent 28rem),
+        radial-gradient(circle at 10% 80%, rgba(199, 255, 46, .1), transparent 24rem),
+        linear-gradient(135deg, #06110d, #030806 70%);
+      color: var(--ink);
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    }
+    main { scroll-snap-type: y mandatory; height: 100vh; overflow-y: auto; }
+    section {
+      position: relative;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      gap: 56px;
+      align-items: center;
+      padding: 80px clamp(28px, 7vw, 112px);
+      border-bottom: 1px solid var(--line);
+      scroll-snap-align: start;
+      overflow: hidden;
+    }
+    section::before {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at 50% 50%, black, transparent 72%);
+      content: "";
+      pointer-events: none;
+    }
+    .content, .visual { position: relative; z-index: 1; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--mint);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mint);
+      box-shadow: 0 0 18px var(--mint);
+      content: "";
+    }
+    h1, h2 {
+      margin: 22px 0;
+      max-width: 820px;
+      font-size: clamp(58px, 8vw, 118px);
+      line-height: .9;
+      letter-spacing: -.075em;
+    }
+    h2 { font-size: clamp(48px, 6vw, 88px); }
+    p {
+      max-width: 680px;
+      color: var(--muted);
+      font-size: clamp(19px, 1.6vw, 25px);
+      line-height: 1.52;
+    }
+    strong { color: var(--ink); }
+    .hero-word { color: #94a79d; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 13px 17px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+    .pill.hot { background: var(--acid); color: #06110d; border-color: transparent; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background:
+        radial-gradient(circle at 80% 0, rgba(92,240,187,.14), transparent 18rem),
+        linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      box-shadow: 0 35px 100px rgba(0,0,0,.32);
+      padding: 32px;
+    }
+    .rail {
+      position: relative;
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+    }
+    .orbit {
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      border: 1px solid rgba(92,240,187,.28);
+      border-radius: 50%;
+      animation: spin 13s linear infinite;
+    }
+    .orbit::before, .orbit::after {
+      position: absolute;
+      inset: 54px;
+      border: 1px dashed rgba(199,255,46,.24);
+      border-radius: inherit;
+      content: "";
+    }
+    .orbit::after { inset: 112px; border-style: solid; }
+    .core {
+      position: relative;
+      width: 190px;
+      height: 190px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(199,255,46,.35);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(199,255,46,.16), rgba(6,17,13,.94) 67%);
+      color: var(--acid);
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: -.05em;
+      box-shadow: 0 0 70px rgba(199,255,46,.1);
+    }
+    .chip {
+      position: absolute;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(8,22,17,.86);
+      padding: 10px 13px;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      box-shadow: 0 15px 35px rgba(0,0,0,.25);
+    }
+    .chip.a { left: 10%; top: 18%; }
+    .chip.b { right: 8%; top: 27%; }
+    .chip.c { left: 14%; bottom: 22%; }
+    .chip.d { right: 14%; bottom: 14%; color: var(--acid); }
+    .steps { display: grid; gap: 18px; }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,255,255,.045);
+      padding: 22px;
+    }
+    .step span {
+      color: var(--mint);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .step h3 { margin: 10px 0 8px; font-size: 26px; }
+    .step p { margin: 0; font-size: 17px; }
+    .matrix { display: grid; gap: 14px; }
+    .matrix-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(255,255,255,.045);
+    }
+    .matrix-row b { font-size: 20px; }
+    .status {
+      border-radius: 999px;
+      padding: 9px 11px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .bad { color: var(--red); border: 1px solid rgba(255,128,108,.35); }
+    .good { color: var(--mint); border: 1px solid rgba(92,240,187,.35); }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .timeline div {
+      min-height: 160px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px;
+      background: rgba(255,255,255,.045);
+    }
+    .timeline b { color: var(--acid); font-size: 18px; }
+    .timeline p { font-size: 15px; margin: 12px 0 0; }
+    footer {
+      position: fixed;
+      z-index: 5;
+      left: 24px;
+      bottom: 18px;
+      color: rgba(239,251,242,.45);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 900px) {
+      section { grid-template-columns: 1fr; gap: 24px; padding: 54px 22px; }
+      .timeline { grid-template-columns: 1fr; }
+      .rail { min-height: 320px; }
+      .orbit { width: 280px; height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <div class="content">
+        <span class="eyebrow">Mid-submission checkpoint</span>
+        <h1>KNOT makes agent payments conditional.</h1>
+        <p>KNOT is a programmable payment policy layer for autonomous agents on Arc. It lets USDC move only after the purchased work satisfies verifiable delivery rules.</p>
+        <div class="button-row">
+          <span class="pill hot">Agentic Economy</span>
+          <span class="pill">Arc Testnet</span>
+          <span class="pill">USDC settlement</span>
+        </div>
+      </div>
+      <div class="visual card rail">
+        <div class="orbit"></div>
+        <div class="core">KNOT</div>
+        <span class="chip a">Intent</span>
+        <span class="chip b">Market</span>
+        <span class="chip c">Proof</span>
+        <span class="chip d">Settle</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="content">
+        <span class="eyebrow">The problem</span>
+        <h2>Agents can pay. Payment does not prove delivery.</h2>
+        <p>If an autonomous agent buys data, a risk score, an API result, or another machine service, the payment rail alone cannot tell whether the work was fresh, signed, complete, or useful.</p>
+      </div>
+      <div class="visual steps">
+        <div class="step"><span>01</span><h3>Blind payment is risky</h3><p>A provider can answer, but the answer may be stale or malformed.</p></div>
+        <div class="step"><span>02</span><h3>Manual review breaks autonomy</h3><p>Humans checking every result defeats the point of agent commerce.</p></div>
+        <div class="step"><span>03</span><h3>Rules need to live before settlement</h3><p>The buyer should define evidence gates before USDC is released.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="content">
+        <span class="eyebrow">The solution</span>
+        <h2>One obligation. Multiple providers. One verified settlement.</h2>
+        <p>The buyer defines the payment policy: maximum price, data freshness, response schema, latency, and provider signature. KNOT routes the request and pays only the provider that satisfies every condition.</p>
+      </div>
+      <div class="visual matrix card">
+        <div class="matrix-row"><b>Max spend</b><span class="status good">0.030 USDC</span></div>
+        <div class="matrix-row"><b>Freshness</b><span class="status good">90s or newer</span></div>
+        <div class="matrix-row"><b>Schema</b><span class="status good">Required fields</span></div>
+        <div class="matrix-row"><b>Provider proof</b><span class="status good">Signature required</span></div>
+        <div class="matrix-row"><b>Settlement</b><span class="status good">Locked until pass</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="content">
+        <span class="eyebrow">Demo flow</span>
+        <h2>Weak evidence fails. Verified evidence unlocks USDC.</h2>
+        <p>In the current MVP, KNOT can reject incomplete provider responses, activate fallback routing, select the first verified provider, and produce an auditable execution receipt.</p>
+      </div>
+      <div class="visual matrix card">
+        <div class="matrix-row"><b>Live Arc Provider / 01</b><span class="status bad">Evidence failed</span></div>
+        <div class="matrix-row"><b>Live Arc Provider / 02</b><span class="status bad">Evidence failed</span></div>
+        <div class="matrix-row"><b>Live Arc Provider / 03</b><span class="status good">Verified & selected</span></div>
+        <div class="matrix-row"><b>Result</b><span class="status good">Payment authorized</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="content">
+        <span class="eyebrow">Arc and Circle fit</span>
+        <h2>Stablecoin-native infrastructure is the point.</h2>
+        <p>KNOT is built for an environment where agent decisions, USDC payments, receipts, and settlement logic can sit in one product flow. Arc gives the app a stablecoin-native chain; Circle tooling gives the project a practical path toward agent wallets and programmable settlement.</p>
+      </div>
+      <div class="visual steps">
+        <div class="step"><span>Arc</span><h3>Fast settlement</h3><p>The product is designed around quick payment decisions and public verification.</p></div>
+        <div class="step"><span>USDC</span><h3>Predictable value</h3><p>Agents can reason about exact prices and spending limits.</p></div>
+        <div class="step"><span>Agent stack</span><h3>Autonomous execution</h3><p>The long-term goal is safer machine-to-machine payments.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="content">
+        <span class="eyebrow">Milestone status</span>
+        <h2>Working MVP, still improving the final demo.</h2>
+        <p>The mid-submission version includes the app interface, wallet connection, provider routing logic, evidence checks, execution trace, settlement result, and receipt pages. The final week is focused on polish, demo clarity, and stronger live settlement storytelling.</p>
+        <div class="timeline">
+          <div><b>Now</b><p>Working route and verification flow.</p></div>
+          <div><b>Next</b><p>Polish motion, copy, and demo path.</p></div>
+          <div><b>Final</b><p>Public repo, video, deck, and MVP.</p></div>
+          <div><b>Goal</b><p>Make agent payments safer and auditable.</p></div>
+        </div>
+      </div>
+      <div class="visual card rail">
+        <div class="orbit"></div>
+        <div class="core">USDC</div>
+        <span class="chip a">Policy</span>
+        <span class="chip b">Evidence</span>
+        <span class="chip c">Receipt</span>
+        <span class="chip d">Arc</span>
+      </div>
+    </section>
+  </main>
+  <footer>KNOT / Programmable Money Hackathon / Mid-submission</footer>
+</body>
+</html>
