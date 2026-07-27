@@ -242,10 +242,48 @@ function ProtocolIcon({ kind }: { kind: string }) {
   return <SignalIcon kind="settle" />;
 }
 
+function TraceMotionLayer({
+  visibleEvents,
+  totalEvents,
+  completed,
+  status,
+}: {
+  visibleEvents: number;
+  totalEvents: number;
+  completed: boolean;
+  status?: Execution["status"];
+}) {
+  const progress = Math.min(100, Math.round((visibleEvents / Math.max(totalEvents, 1)) * 100));
+  const phase = completed ? (status === "verified" ? "cleared" : "blocked") : visibleEvents > 0 ? "running" : "idle";
+  return (
+    <div className={`trace-motion is-${phase}`} style={{ "--trace-progress": `${progress}%` } as React.CSSProperties} aria-hidden="true">
+      <span className="trace-motion-grid" />
+      <span className="trace-beam trace-beam-a" />
+      <span className="trace-beam trace-beam-b" />
+      <span className="trace-packet trace-packet-a" />
+      <span className="trace-packet trace-packet-b" />
+      <span className="trace-packet trace-packet-c" />
+      <div className="trace-orbital">
+        <i />
+        <i />
+        <i />
+        <b>{progress}%</b>
+      </div>
+      <div className="trace-phase-strip">
+        <span>Intent</span>
+        <span>Market</span>
+        <span>Proof</span>
+        <span>Settle</span>
+        <i />
+      </div>
+    </div>
+  );
+}
+
 function TraceEvent({ item, last }: { item: ExecutionEvent; last: boolean }) {
   const label = { discovery: "DISCOVER", quote: "QUOTE", payment: "PAYMENT INTENT", verification: "VERIFY", fallback: "ROUTE", settlement: "SETTLE" }[item.kind];
   return (
-    <li className="trace-event event-enter">
+    <li className={`trace-event event-enter is-${item.status} ${last ? "is-current" : ""}`}>
       <div className="trace-rail" aria-hidden="true"><span className={`trace-node is-${item.status}`} />{!last && <i />}</div>
       <div className="trace-copy">
         <div className="trace-meta"><span>{String(item.sequence + 1).padStart(2, "0")}</span><span>{label}</span>{item.amountUsdc !== undefined && <strong>{item.amountUsdc.toFixed(3)} USDC</strong>}</div>
@@ -261,9 +299,10 @@ function ProviderCard({ attempt, index }: { attempt?: ProviderAttempt; index: nu
   const signedProvider = attempt?.providerId !== "arc-baseline";
   const failedChecks = attempt?.verification.checks.filter((check) => !check.passed).map((check) => check.label.toLowerCase()).join(", ");
   return (
-    <article className={`provider-card ${accepted ? "is-accepted" : ""}`}>
+    <article className={`provider-card ${accepted ? "is-accepted" : rejected ? "is-rejected" : "is-standby"}`}>
       <div className="provider-topline"><span>LIVE ARC PROVIDER / 0{index + 1}</span><span className={`outcome ${accepted ? "good" : rejected ? "bad" : ""}`}>{accepted ? "VERIFIED & SELECTED" : rejected ? "EVIDENCE FAILED" : "STANDBY"}</span></div>
       <h3>{attempt?.provider ?? (index === 0 ? "Arc Baseline" : "Arc Sentinel")}</h3>
+      <div className="provider-verdict-rail" aria-hidden="true"><i /><i /><i /></div>
       <div className="provider-stats">
         <div><span>Quote</span><b>{attempt ? attempt.priceUsdc.toFixed(3) : index === 0 ? "0.018" : "0.024"} USDC</b></div>
         <div><span>Reputation</span><b>{attempt?.reputation ?? (index === 0 ? 78 : 96)} / 100</b></div>
@@ -751,7 +790,7 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
   useEffect(() => {
     if (!execution || visibleEvents >= execution.events.length) return;
-    const timer = window.setTimeout(() => setVisibleEvents((count) => count + 1), visibleEvents === 0 ? 120 : 430);
+    const timer = window.setTimeout(() => setVisibleEvents((count) => count + 1), visibleEvents === 0 ? 160 : 760);
     return () => window.clearTimeout(timer);
   }, [execution, visibleEvents]);
 
@@ -1006,6 +1045,12 @@ function ConsoleView({ wallet, agent, system }: { wallet: ReturnType<typeof useA
 
         <div className="execution-column">
           <article className="trace-panel" ref={tracePanelRef}>
+            <TraceMotionLayer
+              visibleEvents={visibleEvents}
+              totalEvents={execution?.events.length ?? 9}
+              completed={completed}
+              status={execution?.status}
+            />
             <div className="trace-header"><div><span>Agent execution</span><h2>Clearing trace</h2></div><div className="trace-head-actions">{busy && <div className="trace-hourglass"><HourglassIcon /><span>VERIFYING</span></div>}<div className="trace-counter"><strong>{String(visibleTrace.length).padStart(2, "0")}</strong><span>Events</span></div></div></div>
             {visibleTrace.length === 0 ? <TraceStandby maxPrice={maxPrice} maxAge={maxAge} requireSignature={requireSignature} quote={currentQuoteState.quote} /> : <ol className="trace-list" ref={traceListRef}>{visibleTrace.map((item, index) => <TraceEvent key={item.id} item={item} last={index === visibleTrace.length - 1 && completed} />)}</ol>}
             <footer className="trace-footer"><span>Execution ID</span><code>{execution?.id ?? "NOT ISSUED"}</code><span className={completed ? "complete" : ""}>{completed ? "TRACE SEALED" : "AWAITING RUN"}</span></footer>
