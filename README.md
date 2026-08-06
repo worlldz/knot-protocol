@@ -97,7 +97,8 @@ Useful routes:
 
 | Route | Purpose |
 | --- | --- |
-| `/` | KNOT product console |
+| `/` | KNOT product landing page |
+| `/app` | Interactive clearing console |
 | `/.well-known/knot` | Agent discovery document for capabilities, auth boundaries, and integration URLs |
 | `/api/openapi` | OpenAPI 3.1 contract for quote, execute, receipt, and status calls |
 | `/api/submission` | Judge-ready problem, solution, demo flow, users, and live proof brief |
@@ -210,7 +211,7 @@ npm run smoke:sites
 Current verification status:
 
 - `npm run lint` passes.
-- `npm run test` passes with 34 unit tests and 10 contract tests.
+- `npm run test` passes with 40 unit/API tests and 10 contract tests.
 - `npm run build` passes on Next.js 16.2.11.
 - `npm audit --omit=dev` reports 0 vulnerabilities.
 - `npm run smoke:local` verifies quote, execution, receipt page, and receipt-binding checks for Economy, Balanced, and Strict routes against a running KNOT server.
