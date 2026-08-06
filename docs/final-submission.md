@@ -21,6 +21,7 @@ KNOT's core idea is straightforward: autonomous agents should not pay for promis
 ## Submission links
 
 - Live app: https://knot-omega.vercel.app/
+- Demo video: https://knot-omega.vercel.app/knot-demo.mp4
 - Clearing console: https://knot-omega.vercel.app/app
 - Repository: https://github.com/worlldz/knot-protocol
 - Commerce contract: https://testnet.arcscan.app/address/0xb76e57e5366783ac8aeaf08d06b50d506b0ccf9f
