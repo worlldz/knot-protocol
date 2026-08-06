@@ -43,6 +43,7 @@ yarn-error.log*
 /recovery/
 /.knot-data/
 /.demo-video-work/
+/.demo-motion-work/
 /.video-tools/
 
 # vercel
