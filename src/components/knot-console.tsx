@@ -68,7 +68,7 @@ type QuoteState = {
   quote?: ExecutionQuote;
   error?: string;
 };
-type PlaygroundEndpoint = "status" | "marketplace" | "quote" | "execution";
+type PlaygroundEndpoint = "discovery" | "openapi" | "submission" | "launch" | "marketplace" | "manifest" | "status" | "quote" | "execution";
 type PlaygroundResponse = {
   status: "idle" | "loading" | "success" | "error";
   httpStatus?: number;
@@ -107,6 +107,9 @@ const marketplaceProviders = [
   { id: "03", name: "Arc Veritas", tier: "Code-aware", price: "0.045", fee: "0.000540", total: "0.045540", fit: "Premium strict-policy proof for treasury and contracts." },
 ] as const;
 
+const primaryPlaygroundEndpoints: PlaygroundEndpoint[] = ["quote", "execution", "marketplace", "status"];
+const protocolReferenceEndpoints: PlaygroundEndpoint[] = ["discovery", "openapi", "submission", "launch", "marketplace", "manifest", "status"];
+
 const playgroundEndpoints: Record<PlaygroundEndpoint, {
   label: string;
   method: "GET" | "POST";
@@ -114,6 +117,30 @@ const playgroundEndpoints: Record<PlaygroundEndpoint, {
   summary: string;
   body?: Record<string, unknown>;
 }> = {
+  discovery: {
+    label: "Agent discovery",
+    method: "GET",
+    path: "/.well-known/knot",
+    summary: "Discover KNOT capabilities, trust boundaries, endpoint URLs, and the recommended agent flow.",
+  },
+  openapi: {
+    label: "OpenAPI",
+    method: "GET",
+    path: "/api/openapi",
+    summary: "Read the complete OpenAPI 3.1 contract for integrating an external agent with KNOT.",
+  },
+  submission: {
+    label: "Submission brief",
+    method: "GET",
+    path: "/api/submission",
+    summary: "Inspect the judge-ready problem statement, product scope, demo flow, and live proof references.",
+  },
+  launch: {
+    label: "Launch kit",
+    method: "GET",
+    path: "/api/launch",
+    summary: "Read launch readiness, utility, revenue paths, and production guardrails.",
+  },
   status: {
     label: "Rail status",
     method: "GET",
@@ -125,6 +152,12 @@ const playgroundEndpoints: Record<PlaygroundEndpoint, {
     method: "GET",
     path: "/api/marketplace",
     summary: "Inspect provider supply, policy products, quotes, and accepted-settlement economics.",
+  },
+  manifest: {
+    label: "Open manifest",
+    method: "GET",
+    path: "/api/manifest",
+    summary: "Read machine-usable jobs, policy presets, contracts, examples, and endpoint metadata.",
   },
   quote: {
     label: "Preflight quote",
@@ -1385,14 +1418,16 @@ function DeveloperPlayground() {
     ? `fetch("${selected.path}")`
     : `fetch("${selected.path}", {\n  method: "POST",\n  headers: { "content-type": "application/json" },\n  body: JSON.stringify(${requestBody})\n})`;
 
-  const run = useCallback(async () => {
+  const runEndpoint = useCallback(async (key: PlaygroundEndpoint) => {
+    const request = playgroundEndpoints[key];
+    setEndpoint(key);
     setResponse({ status: "loading", body: "KNOT is processing the request..." });
     const startedAt = performance.now();
     try {
-      const apiResponse = await fetch(selected.path, {
-        method: selected.method,
-        headers: selected.body ? { "content-type": "application/json" } : undefined,
-        body: selected.body ? JSON.stringify(selected.body) : undefined,
+      const apiResponse = await fetch(request.path, {
+        method: request.method,
+        headers: request.body ? { "content-type": "application/json" } : undefined,
+        body: request.body ? JSON.stringify(request.body) : undefined,
       });
       const raw = await apiResponse.text();
       let body = raw;
@@ -1404,7 +1439,7 @@ function DeveloperPlayground() {
         // Preserve non-JSON responses for debugging.
       }
       const receiptId = apiResponse.ok
-        && selected.path === "/api/executions"
+        && request.path === "/api/executions"
         && parsed
         && typeof parsed === "object"
         && "id" in parsed
@@ -1426,7 +1461,9 @@ function DeveloperPlayground() {
         body: cause instanceof Error ? cause.message : "The request could not be completed.",
       });
     }
-  }, [selected]);
+  }, []);
+
+  const run = useCallback(() => runEndpoint(endpoint), [endpoint, runEndpoint]);
 
   const copyCurl = useCallback(async () => {
     const origin = window.location.origin;
@@ -1444,8 +1481,15 @@ function DeveloperPlayground() {
         <div><span>LIVE API WORKBENCH</span><h3>Call the protocol, not a mock.</h3></div>
         <span className={`api-workbench-status is-${response.status}`}><i />{response.status === "loading" ? "RUNNING" : response.httpStatus ? `HTTP ${response.httpStatus}` : "READY"}</span>
       </header>
+      <div className="api-reference-actions" aria-label="Machine-readable protocol documents">
+        {protocolReferenceEndpoints.map((key) => (
+          <button key={key} type="button" className={endpoint === key ? "active" : ""} onClick={() => void runEndpoint(key)} disabled={response.status === "loading"}>
+            <small>GET</small><span>{playgroundEndpoints[key].label}</span><ArrowIcon />
+          </button>
+        ))}
+      </div>
       <div className="api-endpoint-tabs" role="tablist" aria-label="KNOT API examples">
-        {(Object.keys(playgroundEndpoints) as PlaygroundEndpoint[]).map((key) => (
+        {primaryPlaygroundEndpoints.map((key) => (
           <button key={key} type="button" role="tab" aria-selected={endpoint === key} className={endpoint === key ? "active" : ""} onClick={() => { setEndpoint(key); setResponse({ status: "idle", body: "Ready to call the selected endpoint." }); }}>
             <small>{playgroundEndpoints[key].method}</small>
             <span>{playgroundEndpoints[key].label}</span>
@@ -1532,15 +1576,6 @@ function ExploreView() {
           <div><span>GET</span><code>/api/system/status</code><small>Check live rails without exposing configured secrets.</small></div>
         </div>
         <DeveloperPlayground />
-        <div className="developer-actions">
-          <a href="/.well-known/knot" target="_blank" rel="noreferrer">Agent discovery <ExternalIcon /></a>
-          <a href="/api/openapi" target="_blank" rel="noreferrer">OpenAPI <ExternalIcon /></a>
-          <a href="/api/submission" target="_blank" rel="noreferrer">Submission brief <ExternalIcon /></a>
-          <a href="/api/launch" target="_blank" rel="noreferrer">Launch kit <ExternalIcon /></a>
-          <a href="/api/marketplace" target="_blank" rel="noreferrer">Marketplace <ExternalIcon /></a>
-          <a href="/api/manifest" target="_blank" rel="noreferrer">Open manifest <ExternalIcon /></a>
-          <a href="/api/system/status" target="_blank" rel="noreferrer">Check status <ExternalIcon /></a>
-        </div>
       </section>
 
       <div className="resource-heading"><div><span>Curated resources</span><h2>Explore the stack</h2></div><p>Official references only. Every link opens the source used to shape KNOT&apos;s architecture.</p></div>

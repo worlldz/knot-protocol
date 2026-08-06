@@ -44,6 +44,7 @@ yarn-error.log*
 /.knot-data/
 /.demo-video-work/
 /.demo-motion-work/
+/.demo-final-work/
 /.video-tools/
 
 # vercel
